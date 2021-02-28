@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing
 
+from sqlalchemy.engine.url import URL
 import attr
 
 
@@ -8,6 +9,7 @@ import attr
 class Settings:
 
     cookie_jar:CookieJar = attr.ib()
+    sqla_url:URL = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:

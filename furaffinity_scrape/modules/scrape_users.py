@@ -1,4 +1,7 @@
+from __future__ import annotations
 import logging
+
+from furaffinity_scrape import utils
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +29,12 @@ class ScrapeUsers:
 
     def __init__(self):
 
-        pass
-
+        self.config = None
+        self.sqla_engine = None
 
     def run(self, parsed_args):
 
-        logger.info("parsed args were: `%s`", parsed_args)
+        self.config = parsed_args.config
+        self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
+
+

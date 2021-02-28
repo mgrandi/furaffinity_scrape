@@ -3,12 +3,19 @@ import logging
 import pyhocon
 
 import arrow
+import sqlalchemy
+from sqlalchemy.engine import Engine
+from sqlalchemy.engine.url import URL
+from sqlalchemy import create_engine
+from sqlalchemy.event import listen
+
 
 from furaffinity_scrape import constants
 from furaffinity_scrape.constants import HoconTypesEnum
 
 from furaffinity_scrape import model
 
+logger = logging.getLogger(__name__)
 
 class ArrowLoggingFormatter(logging.Formatter):
     ''' logging.Formatter subclass that uses arrow, that formats the timestamp
@@ -72,8 +79,11 @@ def parse_config(stringArg):
 
     cookie_jar = model.CookieJar(cookies=tmp_cookie_list)
 
+    db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
+    sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
+
     # return final settings
-    return model.Settings(cookie_jar=cookie_jar)
+    return model.Settings(cookie_jar=cookie_jar, sqla_url=sqla_url)
 
 
 
@@ -143,3 +153,67 @@ def isDirectoryType(filePath):
         raise argparse.ArgumentTypeError("The path `{}` is not a file!".format(path_resolved))
 
     return path_resolved
+
+
+def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
+
+    driver = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_DRIVER)
+    user = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_USER)
+    password = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_PASSWORD)
+    host = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_HOST)
+    port = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_PORT)
+    db = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_DATABASE)
+    query = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_QUERY)
+
+
+    return URL(drivername=driver,
+        username=user,
+        password=password,
+        host=host,
+        port=port,
+        database=db,
+        query=query)
+
+def sqlalchemy_pool_on_connect_listener(dbapi_connection, connection_record):
+    ''' a sqlalchemy listener method that listens to the 'connect' event on a Pool
+
+    https://docs.sqlalchemy.org/en/13/core/events.html#sqlalchemy.events.PoolEvents.connect
+
+    @param dbapi_connection – a DBAPI connection.
+
+    @param connection_record – the _ConnectionRecord managing the DBAPI connection.
+
+    FIXME: this probably only works if we are sqlite, maybe we should have some code
+    to verify if we are sqlite first before we attach this listener?
+    '''
+
+    logger.debug("sqlalchemy_pool_on_connect_listener: enabling foreign keys")
+    dbapi_connection.execute("PRAGMA foreign_keys = ON")
+
+    fk_result = dbapi_connection.execute("PRAGMA foreign_keys")
+    logger.debug("sqlalchemy_pool_on_connect_listener: it is now: `%s`", fk_result.fetchone())
+
+    logger.debug("sqlalchemy_pool_on_connect_listener: setting WAL journaling mode")
+    dbapi_connection.execute("PRAGMA journal_mode = WAL")
+
+    wal_result = dbapi_connection.execute("PRAGMA journal_mode")
+    logger.debug("sqlalchemy_pool_on_connect_listener: it is now: `%s`", wal_result.fetchone())
+
+def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.engine.Engine:
+    '''
+    method to set up the sqlalchemy engine
+
+    this can be overridden in a subclass to configure the engine further
+
+    @return a sqlalchemy.engine.Engine instance
+    '''
+
+    logger.info("creating engine")
+
+    result_engine = create_engine(sqla_url, echo=False)
+
+    # attach a listener to the pool
+    # see https://docs.sqlalchemy.org/en/13/core/event.html
+    listen(result_engine, 'connect', sqlalchemy_pool_on_connect_listener)
+
+    return result_engine
