@@ -12,6 +12,9 @@ HOCON_CONFIG_KEY_DATABASE_PORT = "port"
 HOCON_CONFIG_KEY_DATABASE_DATABASE = "database"
 HOCON_CONFIG_KEY_DATABASE_QUERY = "query"
 
+
+FURAFFINITY_URL_SUBMISSION = "https://www.furaffinity.net/view/{}/"
+
 class HoconTypesEnum(enum.Enum):
     STRING = "string"
     INT = "int"

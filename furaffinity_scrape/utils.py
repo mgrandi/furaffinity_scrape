@@ -1,12 +1,13 @@
 import pathlib
 import logging
 import pyhocon
+import argparse
 
 import arrow
 import sqlalchemy
 from sqlalchemy.engine import Engine
 from sqlalchemy.engine.url import URL
-from sqlalchemy import create_engine
+from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.event import listen
 
 
@@ -166,7 +167,7 @@ def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
     query = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_QUERY)
 
 
-    return URL(drivername=driver,
+    return URL.create(drivername=driver,
         username=user,
         password=password,
         host=host,
@@ -199,21 +200,24 @@ def sqlalchemy_pool_on_connect_listener(dbapi_connection, connection_record):
     wal_result = dbapi_connection.execute("PRAGMA journal_mode")
     logger.debug("sqlalchemy_pool_on_connect_listener: it is now: `%s`", wal_result.fetchone())
 
-def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.engine.Engine:
+def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.ext.asyncio.AsyncEngine:
     '''
     method to set up the sqlalchemy engine
 
     this can be overridden in a subclass to configure the engine further
 
-    @return a sqlalchemy.engine.Engine instance
+    @return a sqlalchemy.ext.asyncio.AsyncEngine instance
     '''
 
-    logger.info("creating engine")
+    logger.info("creating engine using url: `%s`", sqla_url)
 
-    result_engine = create_engine(sqla_url, echo=False)
+    # lets support sqlalchemy 2.0 for future proofing
+    # see https://docs.sqlalchemy.org/en/14/changelog/migration_20.html
+    result_engine = create_async_engine(sqla_url, echo=False, future=True)
 
     # attach a listener to the pool
     # see https://docs.sqlalchemy.org/en/13/core/event.html
-    listen(result_engine, 'connect', sqlalchemy_pool_on_connect_listener)
+    # TODO: get rid of maybe? only needed for sqlite
+    # listen(result_engine, 'connect', sqlalchemy_pool_on_connect_listener)
 
     return result_engine

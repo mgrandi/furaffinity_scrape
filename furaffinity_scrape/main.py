@@ -1,6 +1,7 @@
 import logging
 import argparse
 import sys
+import asyncio
 
 import logging_tree
 
@@ -8,7 +9,7 @@ from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers
 
 
-def main():
+async def main():
 
     parser = argparse.ArgumentParser(
         description="utilities for scraping furaffinity.net",
@@ -43,11 +44,9 @@ def main():
         # set up logging stuff
         logging.captureWarnings(True) # capture warnings with the logging infrastructure
         root_logger = logging.getLogger()
-        logging_formatter = utils.ArrowLoggingFormatter("%(asctime)s %(threadName)-10s %(name)-20s %(levelname)-8s: %(message)s")
+        logging_formatter = utils.ArrowLoggingFormatter("%(asctime)s %(threadName)-10s %(name)-30s %(levelname)-8s: %(message)s")
 
         parsed_args = parser.parse_args()
-
-
 
 
         if parsed_args.log_to_file_path:
@@ -79,7 +78,7 @@ def main():
         # run the function associated with each sub command
         if "func_to_run" in parsed_args:
 
-            parsed_args.func_to_run(parsed_args)
+            await parsed_args.func_to_run(parsed_args)
 
         else:
             root_logger.info("no subcommand specified!")
@@ -90,3 +89,4 @@ def main():
     except Exception as e:
         root_logger.exception("Something went wrong!")
         sys.exit(1)
+

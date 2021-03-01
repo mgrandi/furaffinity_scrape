@@ -1,5 +1,6 @@
 from __future__ import annotations
 import typing
+import enum
 
 from sqlalchemy.engine.url import URL
 import attr
@@ -19,3 +20,9 @@ class CookieKeyValue:
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieJar:
     cookies:typing.Sequence[CookieKeyValue] = attr.ib()
+
+
+
+class DatabaseQueueStatusEnum(enum.Enum):
+    TODO = "todo"
+    FINISHED = "finished"
