@@ -19,14 +19,17 @@ class SubmissionCounter(CustomDeclarativeBase):
 
     submission_counter_id = Column(Integer, nullable=False, autoincrement=True)
 
+    date_visited = Column(ArrowType, nullable=False)
+
     submission_id = Column(Integer, nullable=False)
 
-    # status = Column(ChoiceType(model.DatabaseQueueStatusEnum, impl=Unicode()))
+    submission_status = Column(ChoiceType(model.SubmissionStatus, impl=Unicode()), nullable=False)
 
     __table_args__ = (
         PrimaryKeyConstraint("submission_counter_id", name="PK-submission_counter-submission_counter_id"),
-        Index("IX-submission_counter_id-submission_id", "submission_id"),
-        # Index("IX-submission_counter-status", "status")
+        Index("IX-submission_counter-date_visited", "date_visited"),
+        Index("IX-submission_counter-submission_id", "submission_id"),
+        Index("IX-submission_counter-submission_status", "submission_status"),
     )
 
 class FAUsersFound(CustomDeclarativeBase):

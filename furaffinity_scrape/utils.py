@@ -19,6 +19,19 @@ from furaffinity_scrape import model
 
 logger = logging.getLogger(__name__)
 
+def make_soup_query_and_validate_number(soup, query, number_of_elements_expected):
+
+    result = soup.select(query)
+
+    if len(result) != number_of_elements_expected:
+
+        logger.error("query ( `%s`) did not return the expected number of results: `%s`, but instead returned `%s`",
+            query, number_of_elements_expected, len(result))
+
+        raise Exception("query `{}` did not return the expected number of results".format(query))
+
+    return result
+
 
 def register_ctrl_c_signal_handler(func_to_run):
 

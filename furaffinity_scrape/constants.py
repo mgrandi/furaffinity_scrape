@@ -15,6 +15,8 @@ HOCON_CONFIG_KEY_DATABASE_QUERY = "query"
 
 FURAFFINITY_URL_SUBMISSION = "https://www.furaffinity.net/view/{}/"
 
+SUBMISSION_DOESNT_EXIST_TEXT = "The submission you are trying to find is not in our database.                \nClick here to go back"
+
 class HoconTypesEnum(enum.Enum):
     STRING = "string"
     INT = "int"
