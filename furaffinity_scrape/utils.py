@@ -4,6 +4,8 @@ import pyhocon
 import argparse
 import signal
 
+import furl
+import aiohttp
 import arrow
 import sqlalchemy
 from sqlalchemy.engine import Engine
@@ -19,16 +21,41 @@ from furaffinity_scrape import model
 
 logger = logging.getLogger(__name__)
 
+async def log_aiohttp_sessions_and_cookies(session:aiohttp.ClientSession):
+    '''
+    hits httpbin.org/anything with our currently configured ClientSession
+    to get our headers and cookies
+    '''
+
+    httpbin_str_result = await fetch_url(session, furl.furl(constants.HTTPBIN_URL))
+    logger.debug("aiohttp ClientSession headers and cookies: `%s`", httpbin_str_result)
+
+async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> str:
+    '''
+    fetch a url with an aiohttp session
+    '''
+
+    logger.debug("making request to `%s`", url)
+    async with session.get(url.url) as response:
+
+        logger.debug("request to `%s` resulted in: `%s`", url, response.status)
+
+        response.raise_for_status()
+
+        return await response.text()
+
 def make_soup_query_and_validate_number(soup, query, number_of_elements_expected):
 
     result = soup.select(query)
 
-    if len(result) != number_of_elements_expected:
+    # if number_of_elements_expected is `-1`, then we it can be 0 to many, so just don't check
+    if number_of_elements_expected != -1:
+        if len(result) != number_of_elements_expected:
 
-        logger.error("query ( `%s`) did not return the expected number of results: `%s`, but instead returned `%s`",
-            query, number_of_elements_expected, len(result))
+            logger.error("query ( `%s`) did not return the expected number of results: `%s`, but instead returned `%s`",
+                query, number_of_elements_expected, len(result))
 
-        raise Exception("query `{}` did not return the expected number of results".format(query))
+            raise Exception("query `{}` did not return the expected number of results".format(query))
 
     return result
 
@@ -104,11 +131,23 @@ def parse_config(stringArg):
 
     cookie_jar = model.CookieJar(cookies=tmp_cookie_list)
 
+    # get headers
+    headers_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_HEADERS_KEY}"
+    headers_dict = _get_key_or_throw(conf_obj, headers_key, HoconTypesEnum.CONFIG)
+
+    tmp_header_list = []
+    for header_key, header_value in headers_dict.items():
+
+        header = model.HeaderKeyValue(key=header_key, value=header_value)
+        tmp_header_list.append(header)
+
+    header_jar = model.HeaderJar(headers=tmp_header_list)
+
     db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
     sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
 
     # return final settings
-    return model.Settings(cookie_jar=cookie_jar, sqla_url=sqla_url)
+    return model.Settings(cookie_jar=cookie_jar, header_jar=header_jar, sqla_url=sqla_url)
 
 
 

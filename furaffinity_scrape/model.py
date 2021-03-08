@@ -11,6 +11,7 @@ import attr
 class Settings:
 
     cookie_jar:CookieJar = attr.ib()
+    header_jar:HeaderJar = attr.ib()
     sqla_url:URL = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
@@ -28,6 +29,24 @@ class CookieJar:
 
         for iter_cookie_kv in self.cookies:
             result_dict[iter_cookie_kv.key] = iter_cookie_kv.value
+
+        return result_dict
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class HeaderKeyValue:
+    key:str = attr.ib()
+    value:str = attr.ib()
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class HeaderJar:
+    headers:typing.Sequence[HeaderKeyValue] = attr.ib()
+
+    def as_aiohttp_header_dict(self):
+
+        result_dict = dict()
+
+        for iter_header_kv in self.headers:
+            result_dict[iter_header_kv.key] = iter_header_kv.value
 
         return result_dict
 

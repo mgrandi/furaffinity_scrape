@@ -11,6 +11,7 @@ import arrow
 from sqlalchemy import select, desc
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.dialects.postgresql import insert
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
@@ -56,10 +57,38 @@ class ScrapeUsers:
 
     def create_html_queries(self):
 
+
+        def _get_artist_username(soup):
+            result_list = utils.make_soup_query_and_validate_number(
+                soup=soup,
+                query="div.submission-id-avatar > a",
+                number_of_elements_expected=1)
+
+            # href="/user/dragoneer/"
+            artist_avatar_link = result_list[0]["href"]
+
+            artist_username = artist_avatar_link.split("/")[2].lower()
+
+            return [artist_username]
+
+        def _get_commenter_usernames(soup):
+
+
+            result_list = utils.make_soup_query_and_validate_number(
+                soup=soup,
+                query="strong.comment_username > h3",
+                number_of_elements_expected=-1)
+
+            return [iter_element.text.strip().lower() for iter_element in result_list]
+
         to_add_list = [
 
             model.HtmlQuery(description="artist's username",
-                func=lambda soup: utils.make_soup_query_and_validate_number(soup=soup, query="div.submission-id-avatar > a", number_of_elements_expected=1)[0]["href"].split("/")[2])
+                func=_get_artist_username),
+
+            model.HtmlQuery(description="commenter username",
+                func=_get_commenter_usernames )
+
 
         ]
 
@@ -76,16 +105,46 @@ class ScrapeUsers:
 
         return res.one_or_none()
 
-    async def fetch_url(self, session, url:furl.furl) -> str:
+    async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession):
+        '''
+        queries the database for all of the users found in the set
 
-        logger.debug("making request to `%s`", url)
-        async with session.get(url.url) as response:
 
-            logger.debug("request to `%s` resulted in: `%s`", url, response.status)
+        if we are using postgres, we can update the database using a special insert statement that has
+        'on conflict do nothing' (an "upsert")
 
-            response.raise_for_status()
+        see https://docs.sqlalchemy.org/en/14/dialects/postgresql.html#insert-on-conflict-upsert
 
-            return await response.text()
+        but that requires us dropping down to `core`, so i'm doing it the hard way
+
+        where we ask for all of the users and then diff them
+        '''
+
+        select_statement = select(db_model.FAUsersFound) \
+            .filter(db_model.FAUsersFound.user_name.in_(users_found_set))
+
+        logger.debug("selecting data for user diff update: `%s`", select_statement)
+        select_result = await session.execute(select_statement)
+
+        users_in_database_list = select_result.scalars().all()
+        logger.debug("got `%s` users in database", len(users_in_database_list))
+
+        users_in_database_set = set([iter_user.user_name for iter_user in users_in_database_list])
+
+        # now do a set difference
+        users_not_in_db_set = users_found_set.difference(users_in_database_set)
+
+        logger.debug("users to add (`%s`): `%s`, \n\nusers already in database (`%s`): `%s`, \n\nusers to insert into db (`%s`): `%s`",
+            len(users_found_set),
+            users_found_set,
+            len(users_in_database_set),
+            users_in_database_set,
+            len(users_not_in_db_set),
+            users_not_in_db_set)
+
+        date_added = arrow.utcnow()
+        for iter_user_name in users_not_in_db_set:
+            session.add(db_model.FAUsersFound(date_added=date_added, user_name=iter_user_name))
 
     def does_submission_exist(self, current_fa_submission:model.FASubmission) -> bool:
         ''' returns whether the submission exists or not depending on the html
@@ -117,13 +176,18 @@ class ScrapeUsers:
 
         for iter_query in self.html_queries_list:
 
-            res = iter_query.func(fa_submission.soup)
+            result_set = set(iter_query.func(fa_submission.soup))
 
-            logger.debug("query `%s` returned: `%s`", iter_query.description, res)
+            # ogger.debug("query `%s` returned `%s` new users", iter_query.description, len(result_set))
+            logger.debug("scrape_html: query `%s` returned `%s` unique users: `%s`", iter_query.description, len(result_set), result_set)
 
-            users_found_set.add(res)
 
-        logger.debug("users found in page: `%s`", users_found_set)
+            # `update` only works on a set
+            users_found_set.update(result_set)
+
+        logger.info("found `%s` users for FA submission `%s`", len(users_found_set), fa_submission)
+
+        return users_found_set
 
     async def loop(self, aiohttp_session, sessionmaker):
 
@@ -151,7 +215,7 @@ class ScrapeUsers:
                 # now get the webpage
                 url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
 
-                html_str = await self.fetch_url(aiohttp_session, url)
+                html_str = await utils.fetch_url(aiohttp_session, url)
                 logger.debug("length of html: `%s`", len(html_str))
 
                 soup = BeautifulSoup(html_str, "lxml")
@@ -164,7 +228,13 @@ class ScrapeUsers:
 
                 if does_submission_exist:
                     logger.info("submission `%s` exists, scraping html", current_fa_submission)
-                    self.scrape_html(current_fa_submission)
+                    users_found_set = self.scrape_html(current_fa_submission)
+
+                    # add the users to the database that we don't already have
+
+                    await self.update_or_ignore_found_users(users_found_set, sqla_session)
+
+
                 else:
                     logger.info("submission `%s` doesn't exist, not searching for users", current_fa_submission)
 
@@ -197,7 +267,10 @@ class ScrapeUsers:
                 await conn.run_sync(db_model.CustomDeclarativeBase.metadata.create_all)
 
             cookie_dict = self.config.cookie_jar.as_aiohttp_cookie_dict()
-            async with aiohttp.ClientSession(cookies=cookie_dict) as aiohttp_session:
+            header_dict = self.config.header_jar.as_aiohttp_header_dict()
+            async with aiohttp.ClientSession(cookies=cookie_dict, headers=header_dict) as aiohttp_session:
+
+                await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
 
                 while not self.stop_event.is_set():
                     await self.loop(aiohttp_session, self.async_sessionmaker)
