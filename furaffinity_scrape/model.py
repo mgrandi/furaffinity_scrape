@@ -54,8 +54,17 @@ class HeaderJar:
 class FASubmission:
 
     submission_id:int = attr.ib()
+    raw_html:typing.Optional[str] = attr.ib(repr=False)
     soup:typing.Optional[bs4.BeautifulSoup] = attr.ib(repr=False)
     does_exist:typing.Optional[bool] = attr.ib()
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class CompressAndHashResult:
+
+    compressed_data:bytes = attr.ib(repr=False)
+    original_data_sha512:str = attr.ib()
+    compressed_data_sha512:str = attr.ib()
+
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class HtmlQuery:

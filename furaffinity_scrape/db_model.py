@@ -2,7 +2,7 @@ import logging
 
 from furaffinity_scrape import model
 
-from sqlalchemy import Column, Index, Integer, Unicode, ForeignKey, UniqueConstraint, PrimaryKeyConstraint
+from sqlalchemy import Column, Index, Integer, Unicode, LargeBinary, ForeignKey, UniqueConstraint, PrimaryKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 from sqlalchemy_repr import RepresentableBase
@@ -13,6 +13,32 @@ from sqlalchemy_utils.types.choice import ChoiceType
 logger = logging.getLogger(__name__)
 
 CustomDeclarativeBase = declarative_base(cls=RepresentableBase, name="CustomDeclarativeBase")
+
+class SubmissionWebPage(CustomDeclarativeBase):
+
+    __tablename__ = "submission_webpage"
+
+    submission_webpage_id = Column(Integer, nullable=False, autoincrement=True)
+
+    date_visited = Column(ArrowType, nullable=False)
+
+    submission_id = Column(Integer, nullable=False)
+
+    webpage_data = Column(LargeBinary, nullable=False)
+
+    original_data_sha512 = Column(Unicode, nullable=False)
+
+    compressed_data_sha512 = Column(Unicode, nullable=False)
+
+
+    __table_args__ = (
+        PrimaryKeyConstraint("submission_webpage_id", name="PK-submission_webpage-submission_webpage_id"),
+        Index("IX-submission_webpage-date_visited", "date_visited"),
+        Index("IX-submission_webpage-submission_id", "submission_id"),
+        Index("IX-submission_webpage-original_data_sha512", "original_data_sha512"),
+        Index("IX-submission_webpage-compressed_data_sha512", "compressed_data_sha512"),
+
+    )
 
 class SubmissionCounter(CustomDeclarativeBase):
     __tablename__ = "submission_counter"

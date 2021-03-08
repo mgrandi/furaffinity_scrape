@@ -3,6 +3,9 @@ import logging
 import pyhocon
 import argparse
 import signal
+import tarfile
+import io
+import hashlib
 
 import furl
 import aiohttp
@@ -284,3 +287,49 @@ def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.ext.asyncio.AsyncEngine:
     # listen(result_engine, 'connect', sqlalchemy_pool_on_connect_listener)
 
     return result_engine
+
+def compress_and_hash_text_data(text_to_write:str) -> model.CompressAndHashResult:
+    '''
+    compresses and hashes a string value into a tar.xz (LZMA) file
+
+    @param text_to_write the text to compress
+    @returns a model.CompressAndHashResult object
+    '''
+
+    hasher = hashlib.sha512()
+
+    text_as_binary = text_to_write.encode("utf-8")
+    hasher.update(text_as_binary)
+    original_sha512 = hasher.hexdigest()
+    logger.info("compressing text of length `%s` to tar.xz (LZMA), sha512: `%s`", len(text_as_binary), original_sha512)
+
+    binary_data_fileobj = io.BytesIO()
+    binary_data_fileobj.write(text_as_binary)
+    binary_data_fileobj.seek(0)
+
+    tar_fileobj = io.BytesIO()
+
+    with tarfile.open(mode="w:xz", fileobj=tar_fileobj) as tf:
+
+        tarinfo = tarfile.TarInfo(name="webpage_data.txt")
+        # have to edit the size and name because its not a real file bleh
+        # see https://bugs.python.org/issue22468 and https://bugs.python.org/issue22208 (my bug actually)
+        tarinfo.size = len(binary_data_fileobj.getvalue())
+
+        tf.addfile(tarinfo, binary_data_fileobj)
+
+    final_bytes = tar_fileobj.getvalue()
+
+    hasher = hashlib.sha512()
+    hasher.update(final_bytes)
+    compressed_sha512 = hasher.hexdigest()
+
+    logger.info("final .tar.xz file is `%s` bytes, sha512: `%s`", len(final_bytes), compressed_sha512)
+
+    result = model.CompressAndHashResult(
+        compressed_data=final_bytes,
+        original_data_sha512=original_sha512,
+        compressed_data_sha512=compressed_sha512)
+
+    return result
+

@@ -105,7 +105,7 @@ class ScrapeUsers:
 
         return res.one_or_none()
 
-    async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession):
+    async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession, date_added:arrow.arrow.Arrow):
         '''
         queries the database for all of the users found in the set
 
@@ -142,7 +142,6 @@ class ScrapeUsers:
             len(users_not_in_db_set),
             users_not_in_db_set)
 
-        date_added = arrow.utcnow()
         for iter_user_name in users_not_in_db_set:
             session.add(db_model.FAUsersFound(date_added=date_added, user_name=iter_user_name))
 
@@ -189,12 +188,27 @@ class ScrapeUsers:
 
         return users_found_set
 
-    async def loop(self, aiohttp_session, sessionmaker):
+    def add_webpage_data_to_db(self, sqla_session, fa_submission, current_date):
+
+        compress_and_hash_result = utils.compress_and_hash_text_data(fa_submission.raw_html)
+
+        submission_wp = db_model.SubmissionWebPage(
+            date_visited=current_date,
+            submission_id=self.current_submission_counter,
+            webpage_data=compress_and_hash_result.compressed_data,
+            original_data_sha512=compress_and_hash_result.original_data_sha512,
+            compressed_data_sha512=compress_and_hash_result.compressed_data_sha512)
+
+        sqla_session.add(submission_wp)
+
+    async def one_iteration(self, aiohttp_session, sessionmaker):
 
         async with sessionmaker() as sqla_session:
 
             # get things from the queue
             async with sqla_session.begin():
+
+                current_date = arrow.utcnow()
 
                 # get the current submission counter if we don't have it already
                 if self.current_submission_counter == -1:
@@ -206,49 +220,54 @@ class ScrapeUsers:
                     else:
                         self.current_submission_counter = maybe_queue_row[0].submission_id + 1
 
-                logger.info("on submission counter `%s`", self.current_submission_counter)
 
                 current_fa_submission = model.FASubmission(
                     submission_id=self.current_submission_counter,
+                    raw_html=None,
                     soup=None,
                     does_exist=None)
+                logger.info("on submission `%s`", current_fa_submission)
+
                 # now get the webpage
                 url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
-
                 html_str = await utils.fetch_url(aiohttp_session, url)
                 logger.debug("length of html: `%s`", len(html_str))
-
                 soup = BeautifulSoup(html_str, "lxml")
-                current_fa_submission = attr.evolve(current_fa_submission, soup=soup)
+                current_fa_submission = attr.evolve(current_fa_submission, raw_html=html_str, soup=soup)
 
                 # see if the submission exists
                 does_submission_exist = self.does_submission_exist(current_fa_submission)
-
                 current_fa_submission = attr.evolve(current_fa_submission, does_exist=does_submission_exist)
 
+                # if the submission does exist, save it in the database and scrape it for users
+                # if it doesn't exist, don't do anything
                 if does_submission_exist:
+
                     logger.info("submission `%s` exists, scraping html", current_fa_submission)
+
                     users_found_set = self.scrape_html(current_fa_submission)
 
                     # add the users to the database that we don't already have
+                    await self.update_or_ignore_found_users(users_found_set, sqla_session, current_date)
 
-                    await self.update_or_ignore_found_users(users_found_set, sqla_session)
-
+                    # add the submission page data
+                    self.add_webpage_data_to_db(sqla_session, current_fa_submission, current_date)
 
                 else:
+
                     logger.info("submission `%s` doesn't exist, not searching for users", current_fa_submission)
 
-                # set the new submission counter +1
+                # set the new submission counter +1 in the database
                 new_counter = db_model.SubmissionCounter(
                     submission_id=self.current_submission_counter,
-                    date_visited=arrow.utcnow(),
+                    date_visited=current_date,
                     submission_status=model.SubmissionStatus.EXISTS if current_fa_submission.does_exist else model.SubmissionStatus.DELETED)
-
                 logger.info("adding new submission counter object to db: `%s`", new_counter)
                 sqla_session.add(new_counter)
                 self.current_submission_counter += 1
 
-                logger.info("committing")
+                # one with this FA submission
+                logger.info("finished with submission `%s`", current_fa_submission)
 
     async def run(self, parsed_args, stop_event):
 
@@ -273,7 +292,7 @@ class ScrapeUsers:
                 await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
 
                 while not self.stop_event.is_set():
-                    await self.loop(aiohttp_session, self.async_sessionmaker)
+                    await self.one_iteration(aiohttp_session, self.async_sessionmaker)
                     await asyncio.sleep(4)
 
 
