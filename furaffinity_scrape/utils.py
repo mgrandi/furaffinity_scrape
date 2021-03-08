@@ -2,6 +2,7 @@ import pathlib
 import logging
 import pyhocon
 import argparse
+import signal
 
 import arrow
 import sqlalchemy
@@ -17,6 +18,16 @@ from furaffinity_scrape.constants import HoconTypesEnum
 from furaffinity_scrape import model
 
 logger = logging.getLogger(__name__)
+
+
+def register_ctrl_c_signal_handler(func_to_run):
+
+    def inner_ctrl_c_signal_handler(sig, frame):
+
+        logger.info("SIGINT caught!")
+        func_to_run()
+
+    signal.signal(signal.SIGINT, inner_ctrl_c_signal_handler)
 
 class ArrowLoggingFormatter(logging.Formatter):
     ''' logging.Formatter subclass that uses arrow, that formats the timestamp

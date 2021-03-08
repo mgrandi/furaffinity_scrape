@@ -1,6 +1,7 @@
 from __future__ import annotations
 import logging
 import typing
+import asyncio
 
 import aiohttp
 from furl import furl
@@ -40,6 +41,7 @@ class ScrapeUsers:
 
     def __init__(self):
 
+        self.stop_event = None
         self.config = None
         self.sqla_engine = None
         self.async_sessionmaker = None
@@ -64,48 +66,74 @@ class ScrapeUsers:
 
             logger.debug("request to `%s` resulted in: `%s`", url, response.status)
 
-            async with response:
-                response.raise_for_status()
+            response.raise_for_status()
 
-                return await response.text()
+            return await response.text()
 
-    async def run(self, parsed_args):
+    async def loop(self, aiohttp_session, sessionmaker):
 
-        self.config = parsed_args.config
-        self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
+        async with sessionmaker() as sqla_session:
 
+            # get things from the queue
+            async with sqla_session.begin():
 
-        # expire_on_commit=False will prevent attributes from being expired
-        # after commit.
-        self.async_sessionmaker = sessionmaker(
-            bind=self.sqla_engine, expire_on_commit=False, class_=AsyncSession
-        )
-
-        async with self.sqla_engine.begin() as conn:
-            await conn.run_sync(db_model.CustomDeclarativeBase.metadata.create_all)
-
-        async with aiohttp.ClientSession() as aiohttp_session:
-            async with self.async_sessionmaker() as session:
-
-                # get things from the queue
-                async with session.begin():
-
-                    maybe_queue_row = await self.get_latest_item_from_submission_counter(session)
+                # get the current submission counter if we don't have it already
+                if self.current_submission_counter == -1:
+                    maybe_queue_row = await self.get_latest_item_from_submission_counter(sqla_session)
 
                     if not maybe_queue_row:
                         # don't have any submissions in the database, start with the first one
                         self.current_submission_counter = 1
                     else:
-                        self.current_submission_counter = maybe_queue_row.submission_counter_id
+                        self.current_submission_counter = maybe_queue_row[0].submission_id + 1
+
+                logger.info("on submission counter `%s`", self.current_submission_counter)
+
+                # now get the webpage
+                url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
+
+                html_str = await self.fetch_url(aiohttp_session, url)
+                logger.info("length of html: `%s`", len(html_str))
+
+                # set the new submission counter +1
+                new_counter = db_model.SubmissionCounter(submission_id=self.current_submission_counter)
+                logger.info("adding new submission counter object to db: `%s`", new_counter)
+                sqla_session.add(new_counter)
+                self.current_submission_counter += 1
+
+                logger.info("committing")
+
+    async def run(self, parsed_args, stop_event):
+
+        self.config = parsed_args.config
+        self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
+        self.stop_event = stop_event
+
+        try:
+            # expire_on_commit=False will prevent attributes from being expired
+            # after commit.
+            self.async_sessionmaker = sessionmaker(
+                bind=self.sqla_engine, expire_on_commit=False, class_=AsyncSession
+            )
+
+            async with self.sqla_engine.begin() as conn:
+                await conn.run_sync(db_model.CustomDeclarativeBase.metadata.create_all)
+
+            async with aiohttp.ClientSession() as aiohttp_session:
+
+                while not self.stop_event.is_set():
+                    await self.loop(aiohttp_session, self.async_sessionmaker)
+                    await asyncio.sleep(4)
 
 
-                    # now get the webpage
-                    url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
+                logger.info("loop ended, returning")
 
-                    html_str = await self.fetch_url(aiohttp_session, url)
-                    breakpoint()
+        except Exception as e:
+            logger.exception("uncaught exception")
+            return
 
-                    logger.info("here")
-
-
+        finally:
+            # make sure we dispose the engine because its not in an `async with` block
+            await self.sqla_engine.dispose()
+            self.sqla_engine = None
 
