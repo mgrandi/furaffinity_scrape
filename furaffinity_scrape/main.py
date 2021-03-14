@@ -59,8 +59,8 @@ class Main():
 
                 file_handler = utils.CompressedTimedRotatingFileHandler(
                     filename=parsed_args.log_to_file_path,
-                    when="h",
-                    interval="1",
+                    when="H",
+                    interval=1,
                     encoding="utf-8")
                 file_handler.setFormatter(logging_formatter)
                 root_logger.addHandler(file_handler)
