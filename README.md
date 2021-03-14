@@ -39,11 +39,17 @@ a subcommand to build up a database of users by downloading every furaffinity su
 this will download a submission:
 
 1: checks to see if the submission has been deleted or not
+
 1.1: if the submission still exists
+
 1.1.1: creates a `beautifulsoup4` object out of the downloaded html
+
 1.1.2: runs CSS selector queries on it to parse out any available usernames
+
 1.2.3: see if the extracted users exist in the database, if not, add them
+
 1.2.4: add submission HTML to the database
+
 2: add row to the database marking that we have processed this submission
 
 Eventually, we will have a sizeable list of users, after which we can iterate over them to download their user pages
