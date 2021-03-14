@@ -150,6 +150,9 @@ def parse_config(stringArg):
 
     conf_obj = hocon_config_file_type(stringArg)
 
+    sleep_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_TIME_BETWEEN_REQS_SECS}"
+    sleep_time_seconds = _get_key_or_throw(conf_obj, sleep_key, HoconTypesEnum.INT)
+
     cookies_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_COOKIES_KEY}"
     cookies_dict = _get_key_or_throw(conf_obj, cookies_key, HoconTypesEnum.CONFIG)
 
@@ -178,7 +181,11 @@ def parse_config(stringArg):
     sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
 
     # return final settings
-    return model.Settings(cookie_jar=cookie_jar, header_jar=header_jar, sqla_url=sqla_url)
+    return model.Settings(
+        time_between_requests_seconds=sleep_time_seconds,
+        cookie_jar=cookie_jar,
+        header_jar=header_jar,
+        sqla_url=sqla_url)
 
 
 

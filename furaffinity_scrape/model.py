@@ -10,6 +10,7 @@ import attr
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class Settings:
 
+    time_between_requests_seconds:int = attr.ib()
     cookie_jar:CookieJar = attr.ib()
     header_jar:HeaderJar = attr.ib()
     sqla_url:URL = attr.ib()

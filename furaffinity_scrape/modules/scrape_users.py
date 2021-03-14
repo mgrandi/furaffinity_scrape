@@ -309,11 +309,13 @@ class ScrapeUsers:
             header_dict = self.config.header_jar.as_aiohttp_header_dict()
             async with aiohttp.ClientSession(cookies=cookie_dict, headers=header_dict) as aiohttp_session:
 
-                await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
+                # uncomment this out when we configure our own httpbin instance to not
+                # leak cookies to a public instance that we don't control
+                # await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
 
                 while not self.stop_event.is_set():
                     await self.one_iteration(aiohttp_session, self.async_sessionmaker)
-                    await asyncio.sleep(4)
+                    await asyncio.sleep(self.config.time_between_requests_seconds)
 
 
                 logger.info("loop ended, returning")
