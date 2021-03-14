@@ -6,6 +6,7 @@ import signal
 import tarfile
 import io
 import hashlib
+from logging.handlers import TimedRotatingFileHandler
 
 import furl
 import aiohttp
@@ -358,4 +359,46 @@ def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResul
         compressed_data_sha512=compressed_sha512)
 
     return result
+
+
+class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
+
+    def doRollover(self):
+
+        super().doRollover()
+
+        TAR_XZ_SUFFIX = ".tar.xz"
+
+        base_path = pathlib.Path(self.baseFilename)
+        parent_folder = base_path.parent
+
+        to_compress_list = []
+
+        # figure out what files haven't been compressed yet
+        for iter_child in parent_folder.iterdir():
+
+            # we only care about files, not directories
+            if iter_child.is_dir():
+                continue
+
+            # don't compress the current file
+            if iter_child == base_path:
+                continue
+
+            if not iter_child.name.endswith(TAR_XZ_SUFFIX):
+                to_compress_list.append(iter_child)
+
+        # now compress the files
+        for iter_file in to_compress_list:
+
+            compressed_path = iter_file.with_suffix(iter_file.suffix + TAR_XZ_SUFFIX)
+
+            # add the file to the tar.xz to compress it
+            with tarfile.open(compressed_path, mode="w:xz") as t:
+
+                t.add(iter_file, arcname=iter_file.name)
+
+            # delete the file after we compressed it
+            iter_file.unlink()
+
 
