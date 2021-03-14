@@ -303,7 +303,8 @@ def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.ext.asyncio.AsyncEngine:
     @return a sqlalchemy.ext.asyncio.AsyncEngine instance
     '''
 
-    logger.info("creating engine using url: `%s`", sqla_url)
+    # use repr so it doesn't log the password
+    logger.info("creating engine using url: `%s`", repr(sqla_url))
 
     # lets support sqlalchemy 2.0 for future proofing
     # see https://docs.sqlalchemy.org/en/14/changelog/migration_20.html
