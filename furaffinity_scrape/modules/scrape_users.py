@@ -189,7 +189,7 @@ class ScrapeUsers:
             date_visited=current_date,
             submission_id=self.current_submission_counter,
             raw_compressed_webpage_data=compress_and_hash_result.compressed_data,
-            encoding_status=model.EncodingStatusEnum.DECODED_OK if fa_submission.did_have_decode_error else model.EncodingStatusEnum.UNICODE_DECODE_ERROR,
+            encoding_status=model.EncodingStatusEnum.DECODED_OK if not fa_submission.did_have_decode_error else model.EncodingStatusEnum.UNICODE_DECODE_ERROR,
             original_data_sha512=compress_and_hash_result.original_data_sha512,
             compressed_data_sha512=compress_and_hash_result.compressed_data_sha512)
 
