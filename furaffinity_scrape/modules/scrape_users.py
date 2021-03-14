@@ -17,6 +17,7 @@ from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
 from furaffinity_scrape import model
 from furaffinity_scrape import constants
+from furaffinity_scrape import html_utils
 
 logger = logging.getLogger(__name__)
 
@@ -57,38 +58,22 @@ class ScrapeUsers:
 
     def create_html_queries(self):
 
-
-        def _get_artist_username(soup):
-            result_list = utils.make_soup_query_and_validate_number(
-                soup=soup,
-                query="div.submission-id-avatar > a",
-                number_of_elements_expected=1)
-
-            # href="/user/dragoneer/"
-            artist_avatar_link = result_list[0]["href"]
-
-            artist_username = artist_avatar_link.split("/")[2].lower()
-
-            return [artist_username]
-
-        def _get_commenter_usernames(soup):
-
-
-            result_list = utils.make_soup_query_and_validate_number(
-                soup=soup,
-                query="strong.comment_username > h3",
-                number_of_elements_expected=-1)
-
-            return [iter_element.text.strip().lower() for iter_element in result_list]
-
         to_add_list = [
 
             model.HtmlQuery(description="artist's username",
-                func=_get_artist_username),
+                func=html_utils.get_artist_username_as_list),
 
             model.HtmlQuery(description="commenter username",
-                func=_get_commenter_usernames )
+                func=html_utils.get_commenter_usernames_as_list ),
 
+            model.HtmlQuery(description="submission description avatar username links",
+                func=html_utils.get_submission_description_avatar_usernames_as_list ),
+
+            model.HtmlQuery(description="submission description link username links",
+                func=html_utils.get_submission_description_link_usernames_as_list ),
+
+            model.HtmlQuery(description="submission description url tag username links",
+                func=html_utils.get_submission_description_autolink_usernames_as_list )
 
         ]
 
@@ -108,7 +93,6 @@ class ScrapeUsers:
     async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession, date_added:arrow.arrow.Arrow):
         '''
         queries the database for all of the users found in the set
-
 
         if we are using postgres, we can update the database using a special insert statement that has
         'on conflict do nothing' (an "upsert")
@@ -175,6 +159,7 @@ class ScrapeUsers:
 
         for iter_query in self.html_queries_list:
 
+            logger.debug("scrape_html: starting function for `%s`", iter_query.description)
             result_set = set(iter_query.func(fa_submission.soup))
 
             # ogger.debug("query `%s` returned `%s` new users", iter_query.description, len(result_set))
