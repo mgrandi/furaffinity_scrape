@@ -54,9 +54,10 @@ class HeaderJar:
 class FASubmission:
 
     submission_id:int = attr.ib()
-    raw_html:typing.Optional[str] = attr.ib(repr=False)
+    raw_html_bytes:typing.Optional[bytes] = attr.ib(repr=False)
     soup:typing.Optional[bs4.BeautifulSoup] = attr.ib(repr=False)
     does_exist:typing.Optional[bool] = attr.ib()
+    did_have_decode_error:typing.Optional[bool] = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CompressAndHashResult:
@@ -71,6 +72,19 @@ class HtmlQuery:
     description:str = attr.ib()
     func:function = attr.ib()
 
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class AiohttpResponseResult:
+    '''
+    what we return from utils.fetch_url that represents
+    a result from aiohttp, including the decoded text,
+    raw binary data, and whether or not we had a decoding error
+    when decoding the data as utf8
+    '''
+
+    decoded_text:str = attr.ib()
+    binary_data:bytes = attr.ib()
+    encountered_decoding_error:bool = attr.ib()
+
 class SubmissionStatus(enum.Enum):
     EXISTS = "exists"
     DELETED = "deleted"
@@ -78,3 +92,8 @@ class SubmissionStatus(enum.Enum):
 class DatabaseQueueStatusEnum(enum.Enum):
     TODO = "todo"
     FINISHED = "finished"
+
+class EncodingStatusEnum(enum.Enum):
+    DECODED_OK = "decoded_ok"
+    UNICODE_DECODE_ERROR = "unicode_decode_error"
+

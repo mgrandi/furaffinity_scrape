@@ -24,7 +24,9 @@ class SubmissionWebPage(CustomDeclarativeBase):
 
     submission_id = Column(Integer, nullable=False)
 
-    webpage_data = Column(LargeBinary, nullable=False)
+    raw_compressed_webpage_data = Column(LargeBinary, nullable=False)
+
+    encoding_status = Column(ChoiceType(model.EncodingStatusEnum, impl=Unicode()), nullable=False)
 
     original_data_sha512 = Column(Unicode, nullable=False)
 

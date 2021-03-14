@@ -189,13 +189,22 @@ class ScrapeUsers:
         return users_found_set
 
     def add_webpage_data_to_db(self, sqla_session, fa_submission, current_date):
+        '''
+        given a FA submission and the current date, add a new row to SubmisisonWebPage
 
-        compress_and_hash_result = utils.compress_and_hash_text_data(fa_submission.raw_html)
+        @param sqla_session - the sqlalchemy session
+        @param fa_submission - the FASubmission object to insert to the database
+        @param current_date - the current date as an arrow object
+
+        '''
+
+        compress_and_hash_result = utils.compress_and_hash_text_data(fa_submission.raw_html_bytes)
 
         submission_wp = db_model.SubmissionWebPage(
             date_visited=current_date,
             submission_id=self.current_submission_counter,
-            webpage_data=compress_and_hash_result.compressed_data,
+            raw_compressed_webpage_data=compress_and_hash_result.compressed_data,
+            encoding_status=model.EncodingStatusEnum.DECODED_OK if fa_submission.did_have_decode_error else model.EncodingStatusEnum.UNICODE_DECODE_ERROR,
             original_data_sha512=compress_and_hash_result.original_data_sha512,
             compressed_data_sha512=compress_and_hash_result.compressed_data_sha512)
 
@@ -223,17 +232,22 @@ class ScrapeUsers:
 
                 current_fa_submission = model.FASubmission(
                     submission_id=self.current_submission_counter,
-                    raw_html=None,
+                    raw_html_bytes=None,
                     soup=None,
-                    does_exist=None)
+                    does_exist=None,
+                    did_have_decode_error=None)
                 logger.info("on submission `%s`", current_fa_submission)
 
                 # now get the webpage
                 url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
-                html_str = await utils.fetch_url(aiohttp_session, url)
-                logger.debug("length of html: `%s`", len(html_str))
-                soup = BeautifulSoup(html_str, "lxml")
-                current_fa_submission = attr.evolve(current_fa_submission, raw_html=html_str, soup=soup)
+                aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
+                logger.debug("length of html: `%s`", len(aiohttp_response_result.decoded_text))
+                soup = BeautifulSoup(aiohttp_response_result.decoded_text, "lxml")
+                current_fa_submission = attr.evolve(
+                    current_fa_submission,
+                    raw_html_bytes=aiohttp_response_result.binary_data,
+                    soup=soup,
+                    did_have_decode_error=aiohttp_response_result.encountered_decoding_error)
 
                 # see if the submission exists
                 does_submission_exist = self.does_submission_exist(current_fa_submission)

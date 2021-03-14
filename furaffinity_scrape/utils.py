@@ -33,19 +33,46 @@ async def log_aiohttp_sessions_and_cookies(session:aiohttp.ClientSession):
     httpbin_str_result = await fetch_url(session, furl.furl(constants.HTTPBIN_URL))
     logger.debug("aiohttp ClientSession headers and cookies: `%s`", httpbin_str_result)
 
-async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> str:
+async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> model.AiohttpResponseResult:
     '''
     fetch a url with an aiohttp session
     '''
 
     logger.debug("making request to `%s`", url)
+
     async with session.get(url.url) as response:
 
         logger.debug("request to `%s` resulted in: `%s`", url, response.status)
 
         response.raise_for_status()
 
-        return await response.text()
+        result_bytes = await response.read()
+
+        # some of the pages we are encountering are like a mix of encodings, the outer webpage is utf-8
+        # but then the 'content' the user uploads is not utf-8 and that is causing a UnicodeDecodeError
+        # when we call `response.text()`, so here we attempt to decode with utf8 and if we get an
+        # exception, we try it again with `errors="backslashreplace"`, and we will later
+        # insert it into the database and note that it decoded incorrectly
+        try:
+
+            result_html = result_bytes.decode("utf-8")
+            return model.AiohttpResponseResult(
+                decoded_text=result_html,
+                binary_data=result_bytes,
+                encountered_decoding_error=False)
+
+        except UnicodeDecodeError as e:
+
+            logger.info("the bytes for url `%s` gave us a UnicodeDecodeError (`%s`), decoding with `errors=\"backslashreplace\"`",
+                url, e)
+
+            result_html = result_bytes.decode("utf-8", errors="backslashreplace")
+            return model.AiohttpResponseResult(
+                decoded_text=result_html,
+                binary_data=result_bytes,
+                encountered_decoding_error=True)
+
+
 
 def make_soup_query_and_validate_number(soup, query, number_of_elements_expected):
 
@@ -288,23 +315,22 @@ def setup_sqlalchemy_engine(sqla_url:URL) -> sqlalchemy.ext.asyncio.AsyncEngine:
 
     return result_engine
 
-def compress_and_hash_text_data(text_to_write:str) -> model.CompressAndHashResult:
+def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResult:
     '''
     compresses and hashes a string value into a tar.xz (LZMA) file
 
-    @param text_to_write the text to compress
+    @param binary_data - the binary data to compress
     @returns a model.CompressAndHashResult object
     '''
 
     hasher = hashlib.sha512()
 
-    text_as_binary = text_to_write.encode("utf-8")
-    hasher.update(text_as_binary)
+    hasher.update(binary_data)
     original_sha512 = hasher.hexdigest()
-    logger.info("compressing text of length `%s` to tar.xz (LZMA), sha512: `%s`", len(text_as_binary), original_sha512)
+    logger.info("compressing bytes of length `%s` to tar.xz (LZMA), sha512: `%s`", len(binary_data), original_sha512)
 
     binary_data_fileobj = io.BytesIO()
-    binary_data_fileobj.write(text_as_binary)
+    binary_data_fileobj.write(binary_data)
     binary_data_fileobj.seek(0)
 
     tar_fileobj = io.BytesIO()
