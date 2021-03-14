@@ -210,6 +210,34 @@ class ScrapeUsers:
 
         sqla_session.add(submission_wp)
 
+    async def download_one_fa_submission(self, fa_submission, aiohttp_session) -> model.FASubmission:
+        '''
+        takes a FASubmission and a aiohttp session and downloads the FA submisison and return a
+        evolved FASubmission with the BeautifulSoup, raw html bytes and decoding status
+        updates
+
+        @param fa_submission - the FASubmission object we are going to download
+        @param aiohttp_session - the aiohttp session to use to download the fa submission
+        @return a evolved FaSubmission object
+        '''
+
+        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_id))
+
+        aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
+
+        logger.debug("length of html: `%s`", len(aiohttp_response_result.decoded_text))
+
+        soup = BeautifulSoup(aiohttp_response_result.decoded_text, "lxml")
+
+        evolved_fa_submission = attr.evolve(
+            fa_submission,
+            raw_html_bytes=aiohttp_response_result.binary_data,
+            soup=soup,
+            did_have_decode_error=aiohttp_response_result.encountered_decoding_error)
+
+        return evolved_fa_submission
+
+
     async def one_iteration(self, aiohttp_session, sessionmaker):
 
         async with sessionmaker() as sqla_session:
@@ -239,18 +267,11 @@ class ScrapeUsers:
                 logger.info("on submission `%s`", current_fa_submission)
 
                 # now get the webpage
-                url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(self.current_submission_counter))
-                aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
-                logger.debug("length of html: `%s`", len(aiohttp_response_result.decoded_text))
-                soup = BeautifulSoup(aiohttp_response_result.decoded_text, "lxml")
-                current_fa_submission = attr.evolve(
-                    current_fa_submission,
-                    raw_html_bytes=aiohttp_response_result.binary_data,
-                    soup=soup,
-                    did_have_decode_error=aiohttp_response_result.encountered_decoding_error)
+                current_fa_submission = await self.download_one_fa_submission(current_fa_submission, aiohttp_session)
 
                 # see if the submission exists
                 does_submission_exist = self.does_submission_exist(current_fa_submission)
+
                 current_fa_submission = attr.evolve(current_fa_submission, does_exist=does_submission_exist)
 
                 # if the submission does exist, save it in the database and scrape it for users
