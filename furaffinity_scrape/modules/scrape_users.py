@@ -143,27 +143,49 @@ class ScrapeUsers:
             session.add(db_model.User(date_added=date_added, user_name=iter_user_name))
 
     def does_submission_exist(self, current_fa_submission:model.FASubmission) -> model.SubmissionStatus:
-        ''' returns whether the submission exists or not depending on the html
-
+        '''
+        returns whether the submission exists or not depending on the html
         '''
 
-        result = current_fa_submission.soup.select("div.section-body")
+        def _is_submission_deleted(soup):
+            '''
+            only the submission is deleted
+            '''
+            result = current_fa_submission.soup.select("div.section-body")
 
-        if result:
+            if result:
+                result_element = result[0]
 
-            result_element = result[0]
+                if result_element.text.strip() == constants.SUBMISSION_DOESNT_EXIST_TEXT:
+                    return True
 
-            if result_element.text.strip() == constants.SUBMISSION_DOESNT_EXIST_TEXT:
-                logger.debug("submission `%s` doesn't exist", current_fa_submission)
-                return model.SubmissionStatus.DELETED
-            else:
-                logger.debug("submission `%s`, does exist", current_fa_submission)
-                return model.SubmissionStatus.EXISTS
-        else:
+            return False
 
-            raise Exception("Didn't get a result back for FASubmission `{}`, throwing exception to allow investigation" \
-                .format(current_fa_submission))
+        def _is_submission_gdpr_deleted(soup):
+            '''
+            a "GDPR" delete, presumably the entire account + all submissions are deleted
+            '''
+            result = current_fa_submission.soup.select("body#pageid-error-account-unavailable-deleted")
 
+            if result:
+                result_element = result[0]
+                return True
+
+            return False
+
+
+        if _is_submission_deleted(current_fa_submission.soup):
+            logger.debug("submission `%s` was deleted", current_fa_submission)
+            return model.SubmissionStatus.DELETED
+
+
+        if _is_submission_gdpr_deleted(current_fa_submission.soup):
+            logger.debug("submission `%s`, was GDPR deleted", current_fa_submission)
+            return model.SubmissionStatus.GDPR_DELETED
+
+
+        logger.debug("assuming submission `%s`, does exist", current_fa_submission)
+        return model.SubmissionStatus.EXISTS
 
     def scrape_html(self, fa_submission):
 
@@ -219,7 +241,7 @@ class ScrapeUsers:
         @return a evolved FaSubmission object
         '''
 
-        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_row.submission_id))
+        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_row.furaffinity_submission_id))
 
         aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
 
@@ -243,11 +265,12 @@ class ScrapeUsers:
 
             next_submission_id = -1
 
+            breakpoint()
             maybe_submission = await self.find_latest_claimed_submission(sqla_session)
 
             if maybe_submission is None:
                 # start out with 1 if there are no submissions
-                next_submission_id = 1
+                next_submission_id = 15872
             else:
                 next_submission_id = maybe_submission.furaffinity_submission_id + 1
 
