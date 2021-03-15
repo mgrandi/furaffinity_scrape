@@ -79,14 +79,14 @@ class ScrapeUsers:
 
         self.html_queries_list.extend(to_add_list)
 
-    async def get_latest_item_from_submission_counter(self, session:AsyncSession) -> typing.Optional[db_model.SubmissionCounter]:
+    async def get_latest_item_from_submission_counter(self, session:AsyncSession) -> typing.Optional[db_model.Submission]:
 
-        logger.debug("fetching one row from SubmissionCounter ")
-        stmt = select(db_model.SubmissionCounter).order_by(desc("submission_id")).limit(1)
+        logger.debug("fetching one row from Submission ")
+        stmt = select(db_model.Submission).order_by(desc("submission_id")).limit(1)
 
         res = await session.execute(stmt)
 
-        logger.debug("SubmissionCounter result: `%s`", res)
+        logger.debug("Submission result: `%s`", res)
 
         return res.one_or_none()
 
@@ -104,8 +104,8 @@ class ScrapeUsers:
         where we ask for all of the users and then diff them
         '''
 
-        select_statement = select(db_model.FAUsersFound) \
-            .filter(db_model.FAUsersFound.user_name.in_(users_found_set))
+        select_statement = select(db_model.User) \
+            .filter(db_model.User.user_name.in_(users_found_set))
 
         logger.debug("selecting data for user diff update: `%s`", select_statement)
         select_result = await session.execute(select_statement)
@@ -127,7 +127,7 @@ class ScrapeUsers:
             users_not_in_db_set)
 
         for iter_user_name in users_not_in_db_set:
-            session.add(db_model.FAUsersFound(date_added=date_added, user_name=iter_user_name))
+            session.add(db_model.User(date_added=date_added, user_name=iter_user_name))
 
     def does_submission_exist(self, current_fa_submission:model.FASubmission) -> bool:
         ''' returns whether the submission exists or not depending on the html
@@ -185,7 +185,7 @@ class ScrapeUsers:
 
         compress_and_hash_result = utils.compress_and_hash_text_data(fa_submission.raw_html_bytes)
 
-        submission_wp = db_model.SubmissionWebPage(
+        submission_wp = db_model.SubmissionWebpage(
             date_visited=current_date,
             submission_id=self.current_submission_counter,
             raw_compressed_webpage_data=compress_and_hash_result.compressed_data,
@@ -278,11 +278,12 @@ class ScrapeUsers:
                     logger.info("submission `%s` doesn't exist, not searching for users", current_fa_submission)
 
                 # set the new submission counter +1 in the database
-                new_counter = db_model.SubmissionCounter(
+                new_counter = db_model.Submission(
                     submission_id=self.current_submission_counter,
                     date_visited=current_date,
-                    submission_status=model.SubmissionStatus.EXISTS if current_fa_submission.does_exist else model.SubmissionStatus.DELETED)
-                logger.info("adding new submission counter object to db: `%s`", new_counter)
+                    submission_status=model.SubmissionStatus.EXISTS if current_fa_submission.does_exist else model.SubmissionStatus.DELETED,
+                    processed_status=model.ProcessedStatus.FINISHED)
+                logger.info("adding new submission object to db: `%s`", new_counter)
                 sqla_session.add(new_counter)
                 self.current_submission_counter += 1
 

@@ -90,7 +90,7 @@ class SubmissionStatus(enum.Enum):
     EXISTS = "exists"
     DELETED = "deleted"
 
-class DatabaseQueueStatusEnum(enum.Enum):
+class ProcessedStatus(enum.Enum):
     TODO = "todo"
     FINISHED = "finished"
 
