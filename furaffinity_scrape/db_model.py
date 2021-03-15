@@ -25,6 +25,8 @@ class SubmissionWebpage(CustomDeclarativeBase):
             name="FK-submission_webpage-submission_id-submission-submission_id"),
         nullable=False)
 
+    submission = relationship("Submission")
+
     date_visited = Column(ArrowType, nullable=False)
 
     raw_compressed_webpage_data = Column(LargeBinary, nullable=False)
@@ -50,19 +52,23 @@ class Submission(CustomDeclarativeBase):
 
     submission_id = Column(Integer, nullable=False, autoincrement=True)
 
-    date_visited = Column(ArrowType, nullable=False)
+    furaffinity_submission_id = Column(Integer, nullable=False)
 
-    submission_id = Column(Integer, nullable=False)
+    date_visited = Column(ArrowType, nullable=False)
 
     submission_status = Column(ChoiceType(model.SubmissionStatus, impl=Unicode()), nullable=False)
 
     processed_status = Column(ChoiceType(model.ProcessedStatus, impl=Unicode()), nullable=False)
 
+    claimed_by = Column(Unicode, nullable=False)
+
     __table_args__ = (
         PrimaryKeyConstraint("submission_id", name="PK-submission-submission_id"),
+        Index("IX-submission-furaffinity_submission_id", "furaffinity_submission_id"),
         Index("IX-submission-date_visited", "date_visited"),
-        Index("IX-submission-submission_id", "submission_id"),
         Index("IX-submission-submission_status", "submission_status"),
+        Index("IX-submission-processed_status", "processed_status"),
+        Index("IX-submission-claimed_by", "claimed_by"),
     )
 
 class User(CustomDeclarativeBase):

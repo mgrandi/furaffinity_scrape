@@ -54,10 +54,9 @@ class HeaderJar:
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class FASubmission:
 
-    submission_id:int = attr.ib()
+    submission_row:typing.Optional[db_model.Submission] = attr.ib()
     raw_html_bytes:typing.Optional[bytes] = attr.ib(repr=False)
     soup:typing.Optional[bs4.BeautifulSoup] = attr.ib(repr=False)
-    does_exist:typing.Optional[bool] = attr.ib()
     did_have_decode_error:typing.Optional[bool] = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
@@ -87,8 +86,10 @@ class AiohttpResponseResult:
     encountered_decoding_error:bool = attr.ib()
 
 class SubmissionStatus(enum.Enum):
+    UNKNOWN = "unknown"
     EXISTS = "exists"
     DELETED = "deleted"
+    GDPR_DELETED = "gdpr_deleted"
 
 class ProcessedStatus(enum.Enum):
     TODO = "todo"

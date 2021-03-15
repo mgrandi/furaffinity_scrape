@@ -2,6 +2,8 @@ from __future__ import annotations
 import logging
 import typing
 import asyncio
+import socket
+import os
 
 import attr
 from bs4 import BeautifulSoup
@@ -42,14 +44,16 @@ class ScrapeUsers:
         parser.set_defaults(func_to_run=scrape_users_obj.run)
 
 
-
     def __init__(self):
 
+        fqdn = socket.getfqdn("localhost")
+        pid = os.getpid()
+        self.identity_string = f"FQDN[{fqdn}]-PID[{pid}]"
+        logger.info("Our identity string is `%s`", self.identity_string)
         self.stop_event = None
         self.config = None
         self.sqla_engine = None
         self.async_sessionmaker = None
-        self.current_submission_counter = -1
 
         self.html_queries_list = []
 
@@ -79,16 +83,25 @@ class ScrapeUsers:
 
         self.html_queries_list.extend(to_add_list)
 
-    async def get_latest_item_from_submission_counter(self, session:AsyncSession) -> typing.Optional[db_model.Submission]:
+    async def find_latest_claimed_submission(self, session:AsyncSession) -> typing.Optional[db_model.Submission]:
 
-        logger.debug("fetching one row from Submission ")
+        logger.debug("fetching latest claimed submission")
         stmt = select(db_model.Submission).order_by(desc("submission_id")).limit(1)
 
         res = await session.execute(stmt)
 
-        logger.debug("Submission result: `%s`", res)
 
-        return res.one_or_none()
+        maybe_result = res.one_or_none()
+
+        if maybe_result:
+
+            actual_submission = maybe_result["Submission"]
+            logger.debug("latest claimed Submission result: `%s`", actual_submission)
+            return actual_submission
+
+        else:
+            logger.debug("didn't find any submissions")
+            return None
 
     async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession, date_added:arrow.arrow.Arrow):
         '''
@@ -129,7 +142,7 @@ class ScrapeUsers:
         for iter_user_name in users_not_in_db_set:
             session.add(db_model.User(date_added=date_added, user_name=iter_user_name))
 
-    def does_submission_exist(self, current_fa_submission:model.FASubmission) -> bool:
+    def does_submission_exist(self, current_fa_submission:model.FASubmission) -> model.SubmissionStatus:
         ''' returns whether the submission exists or not depending on the html
 
         '''
@@ -142,14 +155,14 @@ class ScrapeUsers:
 
             if result_element.text.strip() == constants.SUBMISSION_DOESNT_EXIST_TEXT:
                 logger.debug("submission `%s` doesn't exist", current_fa_submission)
-                return False
+                return model.SubmissionStatus.DELETED
             else:
                 logger.debug("submission `%s`, does exist", current_fa_submission)
-                return True
+                return model.SubmissionStatus.EXISTS
         else:
 
-            logger.debug("didn't get a result back, assuming submission `%s` exists", current_fa_submission)
-            return True
+            raise Exception("Didn't get a result back for FASubmission `{}`, throwing exception to allow investigation" \
+                .format(current_fa_submission))
 
 
     def scrape_html(self, fa_submission):
@@ -187,7 +200,7 @@ class ScrapeUsers:
 
         submission_wp = db_model.SubmissionWebpage(
             date_visited=current_date,
-            submission_id=self.current_submission_counter,
+            submission=fa_submission.submission_row,
             raw_compressed_webpage_data=compress_and_hash_result.compressed_data,
             encoding_status=model.EncodingStatusEnum.DECODED_OK if not fa_submission.did_have_decode_error else model.EncodingStatusEnum.UNICODE_DECODE_ERROR,
             original_data_sha512=compress_and_hash_result.original_data_sha512,
@@ -206,7 +219,7 @@ class ScrapeUsers:
         @return a evolved FaSubmission object
         '''
 
-        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_id))
+        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_row.submission_id))
 
         aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
 
@@ -223,31 +236,59 @@ class ScrapeUsers:
         return evolved_fa_submission
 
 
+    async def claim_next_submission(self, sqla_session, current_date):
+
+
+        async with sqla_session.begin():
+
+            next_submission_id = -1
+
+            maybe_submission = await self.find_latest_claimed_submission(sqla_session)
+
+            if maybe_submission is None:
+                # start out with 1 if there are no submissions
+                next_submission_id = 1
+            else:
+                next_submission_id = maybe_submission.furaffinity_submission_id + 1
+
+            logger.debug("submission id we are claiming: `%s`", next_submission_id)
+
+
+            # insert the submission into the database to mark that are processing this
+            new_submission_row = db_model.Submission(
+                furaffinity_submission_id=next_submission_id,
+                date_visited=current_date,
+                submission_status=model.SubmissionStatus.UNKNOWN,
+                processed_status=model.ProcessedStatus.TODO,
+                claimed_by=self.identity_string)
+
+            logger.info("adding new submission object to db: `%s`", new_submission_row)
+
+            sqla_session.add(new_submission_row)
+
+            return new_submission_row
+
     async def one_iteration(self, aiohttp_session, sessionmaker):
+
+        current_date = arrow.utcnow()
+
+        current_submission_row = None
+
+        # TODO lock here
+        async with sessionmaker() as sqla_session:
+
+            # claim the latest submission and commit it
+            current_submission_row = await self.claim_next_submission(sqla_session, current_date)
 
         async with sessionmaker() as sqla_session:
 
-            # get things from the queue
+
             async with sqla_session.begin():
 
-                current_date = arrow.utcnow()
-
-                # get the current submission counter if we don't have it already
-                if self.current_submission_counter == -1:
-                    maybe_queue_row = await self.get_latest_item_from_submission_counter(sqla_session)
-
-                    if not maybe_queue_row:
-                        # don't have any submissions in the database, start with the first one
-                        self.current_submission_counter = 1
-                    else:
-                        self.current_submission_counter = maybe_queue_row[0].submission_id + 1
-
-
                 current_fa_submission = model.FASubmission(
-                    submission_id=self.current_submission_counter,
+                    submission_row=current_submission_row,
                     raw_html_bytes=None,
                     soup=None,
-                    does_exist=None,
                     did_have_decode_error=None)
                 logger.info("on submission `%s`", current_fa_submission)
 
@@ -255,13 +296,13 @@ class ScrapeUsers:
                 current_fa_submission = await self.download_one_fa_submission(current_fa_submission, aiohttp_session)
 
                 # see if the submission exists
-                does_submission_exist = self.does_submission_exist(current_fa_submission)
+                submission_status = self.does_submission_exist(current_fa_submission)
 
-                current_fa_submission = attr.evolve(current_fa_submission, does_exist=does_submission_exist)
+                current_submission_row.submission_status = submission_status
 
                 # if the submission does exist, save it in the database and scrape it for users
                 # if it doesn't exist, don't do anything
-                if does_submission_exist:
+                if submission_status == model.SubmissionStatus.EXISTS:
 
                     logger.info("submission `%s` exists, scraping html", current_fa_submission)
 
@@ -277,15 +318,9 @@ class ScrapeUsers:
 
                     logger.info("submission `%s` doesn't exist, not searching for users", current_fa_submission)
 
-                # set the new submission counter +1 in the database
-                new_counter = db_model.Submission(
-                    submission_id=self.current_submission_counter,
-                    date_visited=current_date,
-                    submission_status=model.SubmissionStatus.EXISTS if current_fa_submission.does_exist else model.SubmissionStatus.DELETED,
-                    processed_status=model.ProcessedStatus.FINISHED)
-                logger.info("adding new submission object to db: `%s`", new_counter)
-                sqla_session.add(new_counter)
-                self.current_submission_counter += 1
+                # now mark the submission as processed
+                current_submission_row.processed_status = model.ProcessedStatus.FINISHED
+                sqla_session.add(current_submission_row)
 
                 # one with this FA submission
                 logger.info("finished with submission `%s`", current_fa_submission)
