@@ -10,10 +10,11 @@ from bs4 import BeautifulSoup
 import aiohttp
 from furl import furl
 import arrow
-from sqlalchemy import select, desc
+from sqlalchemy import select, desc, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
+
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
@@ -263,14 +264,24 @@ class ScrapeUsers:
 
         async with sqla_session.begin():
 
+            logger.debug("attempting to lock table `%s`", db_model.Submission.__tablename__)
+            conn = await sqla_session.connection()
+            await conn.execute(text(f"LOCK TABLE {db_model.Submission.__tablename__} IN ACCESS EXCLUSIVE MODE"))
+            logger.debug("lock acquired")
+
             next_submission_id = -1
 
-            breakpoint()
+            # DEBUG LOCKING
+            # logging.debug("sleeping")
+            # await asyncio.sleep(10)
+            # logging.debug("sleeping done")
+            # END DEBUG LOCKING
+
             maybe_submission = await self.find_latest_claimed_submission(sqla_session)
 
             if maybe_submission is None:
                 # start out with 1 if there are no submissions
-                next_submission_id = 15872
+                next_submission_id = 1
             else:
                 next_submission_id = maybe_submission.furaffinity_submission_id + 1
 
@@ -347,6 +358,9 @@ class ScrapeUsers:
 
                 # one with this FA submission
                 logger.info("finished with submission `%s`", current_fa_submission)
+                logger.debug("committing")
+
+            logger.debug("committing done")
 
     async def run(self, parsed_args, stop_event):
 
