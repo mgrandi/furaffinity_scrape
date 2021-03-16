@@ -8,17 +8,16 @@ from furaffinity_scrape import constants
 logger = logging.getLogger(__name__)
 
 
-def extract_username_from_url(url, raise_exception_on_mismatch=True) -> typing.Optional[str]:
+def extract_username_from_url(url, warn_on_mismatch=True) -> typing.Optional[str]:
     '''
     get the username from urls that could appear
 
     such as relative or full username urls
 
     @param url - the url to check against our regexes
-    @param raise_exception_on_mismatch - if true, we will raise an exception if the url
+    @param warn_on_mismatch - if true, we will warn if the url
     didn't match any of the regexes
-    @return a username that was found in the url or None if nothing was found and
-    raise_exception_on_mismatch was False
+    @return a username that was found in the url or None if nothing was found
 
     '''
 
@@ -34,9 +33,10 @@ def extract_username_from_url(url, raise_exception_on_mismatch=True) -> typing.O
                 return search_result.groupdict()[constants.RELATIVE_URL_RE_KEY]
 
     # if we get here then none of the regexes matched
-    if raise_exception_on_mismatch:
-        raise Exception("extract_username_from_url: url `{}` did not match against any of the regexes `{}`" \
-            .format(url, possible_regexes))
+    if warn_on_mismatch:
+        logger.warning("extract_username_from_url: url `%s` did not match against any of the regexes `%s`",
+            url, possible_regexes)
+        return None
     else:
         return None
 
@@ -64,13 +64,13 @@ def get_commenter_usernames_as_list(soup):
     return [iter_element.text.strip().lower() for iter_element in result_list]
 
 
-def _submission_description_usernames_by_a_tag_class(soup, class_to_search_for, raise_exception_on_mismatch=True):
+def _submission_description_usernames_by_a_tag_class(soup, class_to_search_for, warn_on_mismatch=True):
     '''
     finds usernames that are in an <a> tag that has a specific class
 
     @param soup - the beautiful soup object
     @param class_to_search_for - the str html class to search for
-    @param raise_exception_on_mismatch - if true, this will raise an exception if we didn't find
+    @param warn_on_mismatch - if true, this will warn if we didn't find
     any usernames in the url
 
     @param a list of usernames
@@ -86,7 +86,7 @@ def _submission_description_usernames_by_a_tag_class(soup, class_to_search_for, 
     for iter_element in result_list:
         raw_href = iter_element["href"]
 
-        maybe_username = extract_username_from_url(raw_href, raise_exception_on_mismatch)
+        maybe_username = extract_username_from_url(raw_href, warn_on_mismatch)
         if maybe_username:
             results.append(maybe_username)
 
@@ -138,7 +138,7 @@ def get_submission_description_autolink_usernames_as_list(soup):
     '''
 
     possible_urls = _submission_description_usernames_by_a_tag_class(
-        soup, "auto_link", raise_exception_on_mismatch=False)
+        soup, "auto_link", warn_on_mismatch=False)
 
     return possible_urls
 
