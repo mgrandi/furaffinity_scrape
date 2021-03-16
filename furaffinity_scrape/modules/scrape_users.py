@@ -387,11 +387,12 @@ class ScrapeUsers:
                 # await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
 
                 while not self.stop_event.is_set():
+                    logger.debug("run() loop iteration")
                     await self.one_iteration(aiohttp_session, self.async_sessionmaker)
+                    logger.debug("sleeping for `%s` seconds", self.config.time_between_requests_seconds)
                     await asyncio.sleep(self.config.time_between_requests_seconds)
 
-
-                logger.info("loop ended, returning")
+                logger.info("run() loop ended, stop_event was set! Returning")
 
         except Exception as e:
             logger.exception("uncaught exception")
