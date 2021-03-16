@@ -2,7 +2,9 @@ import enum
 import re
 
 RELATIVE_URL_RE_KEY = "username"
-FA_USERNAME_ALLOWED_CHARS = "a-zA-Z0-9_\-~."
+# from their registration page:
+# "Only letters and numbers, dash, underscore, tilde and a period are allowed."
+FA_USERNAME_ALLOWED_CHARS = "a-zA-Z0-9_\-~.`"
 RELATIVE_URL_RE = re.compile(f"^/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")
 FURAFFINITY_USERNAME_RE = re.compile(f"^https?://(www.)?furaffinity.net/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")
 FURAFFINITY_RELATIVE_USERNAME_RE = re.compile(f"^/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")

@@ -50,6 +50,10 @@ def get_artist_username_as_list(soup):
     artist_avatar_link = result_list[0]["href"]
 
     artist_username = extract_username_from_url(artist_avatar_link)
+    if not artist_username:
+        # if we get here, there are characters we didn't know about that we aren't handling
+        logger.error("didn't get a result from extract_username_from_url for the artist name from the element `%s`, this is a bug", artist_avatar_link)
+        raise Exception(f"didn't get a result from extract_username_from_url for the artist name from the element `{artist_avatar_link}`, this is a bug")
 
     return [artist_username]
 
