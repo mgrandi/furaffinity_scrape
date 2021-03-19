@@ -50,7 +50,6 @@ class ScrapeUsers:
         fqdn = socket.getfqdn()
         pid = os.getpid()
         self.identity_string = f"FQDN[{fqdn}]-PID[{pid}]"
-        logger.info("Our identity string is `%s`", self.identity_string)
         self.stop_event = None
         self.config = None
         self.sqla_engine = None
@@ -363,6 +362,8 @@ class ScrapeUsers:
             logger.debug("committing done")
 
     async def run(self, parsed_args, stop_event):
+
+        logger.info("Our identity string is `%s`", self.identity_string)
 
         self.config = parsed_args.config
         self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
