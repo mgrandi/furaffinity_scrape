@@ -45,3 +45,9 @@ so I had to make it so we just warn on regex mismatches rather than throwing an 
 python cli.py --config "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\furaffinity_scrape_config.hocon" --verbose --log-to-file "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\logs\$([int][double]::Parse((Get-Date -UFormat %s)))_furaffinity_scrape_output.log" scrape_users
 
 ```
+
+### linux
+
+```plaintext
+python cli.py --verbose --no-stdout --log-to-file "/home/mgrandi/faurls/$(date --utc '+%FT%H_%M_%S.%N%z')_furaffinity_scrape.log" --config ../fascraper_config.hocon scrape_users
+```
