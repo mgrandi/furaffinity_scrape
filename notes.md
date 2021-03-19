@@ -35,3 +35,13 @@ as in `@__@`, so it made `__` as a username which doesn't work lol, and the html
 ```
 
 so I had to make it so we just warn on regex mismatches rather than throwing an exception, grumble
+
+
+## running
+
+### powershell
+
+```plaintext
+python cli.py --config "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\furaffinity_scrape_config.hocon" --verbose --log-to-file "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\logs\$([int][double]::Parse((Get-Date -UFormat %s)))_furaffinity_scrape_output.log" scrape_users
+
+```
