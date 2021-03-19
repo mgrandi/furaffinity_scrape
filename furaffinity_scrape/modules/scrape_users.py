@@ -47,7 +47,7 @@ class ScrapeUsers:
 
     def __init__(self):
 
-        fqdn = socket.getfqdn("localhost")
+        fqdn = socket.getfqdn()
         pid = os.getpid()
         self.identity_string = f"FQDN[{fqdn}]-PID[{pid}]"
         logger.info("Our identity string is `%s`", self.identity_string)
