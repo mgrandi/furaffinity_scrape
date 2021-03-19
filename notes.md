@@ -42,7 +42,7 @@ so I had to make it so we just warn on regex mismatches rather than throwing an 
 ### powershell
 
 ```plaintext
-python cli.py --config "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\furaffinity_scrape_config.hocon" --verbose --log-to-file "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\logs\$([int][double]::Parse((Get-Date -UFormat %s)))_furaffinity_scrape_output.log" scrape_users
+python cli.py --verbose --no-stdout --log-to-file "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\logs\$([int][double]::Parse((Get-Date -UFormat %s)))_furaffinity_scrape_output.log" --config "C:\Users\mark\Temp\furaffinity_scrape_temporary_folder\furaffinity_scrape_config.hocon" scrape_users
 
 ```
 
