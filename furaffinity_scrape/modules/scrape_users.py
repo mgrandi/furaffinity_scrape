@@ -117,6 +117,13 @@ class ScrapeUsers:
         where we ask for all of the users and then diff them
         '''
 
+        # lock the user table so multiple things don't attempt to insert a user after another worker has
+        # already inserted it, cuasing a multiple row / duplicate primary key error
+        user_tablename = db_model.User.__tablename__
+        logger.debug("attempting to lock table `%s`", user_tablename)
+        await session.execute(text(f"LOCK TABLE {user_tablename} IN ACCESS EXCLUSIVE MODE"))
+        logger.debug("lock acquired")
+
         select_statement = select(db_model.User) \
             .filter(db_model.User.user_name.in_(users_found_set))
 
@@ -260,12 +267,12 @@ class ScrapeUsers:
 
     async def claim_next_submission(self, sqla_session, current_date):
 
-
         async with sqla_session.begin():
 
-            logger.debug("attempting to lock table `%s`", db_model.Submission.__tablename__)
-            conn = await sqla_session.connection()
-            await conn.execute(text(f"LOCK TABLE {db_model.Submission.__tablename__} IN ACCESS EXCLUSIVE MODE"))
+            # lock the submission table so multiple workers don't claim the same submission
+            submission_tablename = db_model.Submission.__tablename__
+            logger.debug("attempting to lock table `%s`", submission_tablename)
+            await sqla_session.execute(text(f"LOCK TABLE {submission_tablename} IN ACCESS EXCLUSIVE MODE"))
             logger.debug("lock acquired")
 
             next_submission_id = -1
