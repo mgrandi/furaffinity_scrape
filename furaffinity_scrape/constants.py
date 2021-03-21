@@ -6,7 +6,8 @@ RELATIVE_URL_RE_KEY = "username"
 # "Only letters and numbers, dash, underscore, tilde and a period are allowed."
 # except just kidding, the characters `]` and `[` also work, even though it says they don't
 # when you create a new account, but this profile exists: https://www.furaffinity.net/user/]-[3l/
-FA_USERNAME_ALLOWED_CHARS = "a-zA-Z0-9_\-~.`\[\]"
+# haha found another one, carets are apparently allowed: https://www.furaffinity.net/user/^nobodysville^/
+FA_USERNAME_ALLOWED_CHARS = "a-zA-Z0-9_\-~.`\[\]^"
 RELATIVE_URL_RE = re.compile(f"^/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")
 FURAFFINITY_USERNAME_RE = re.compile(f"^https?://(www.)?furaffinity.net/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")
 FURAFFINITY_RELATIVE_USERNAME_RE = re.compile(f"^/user/(?P<{RELATIVE_URL_RE_KEY}>[{FA_USERNAME_ALLOWED_CHARS}]+)/?$")
