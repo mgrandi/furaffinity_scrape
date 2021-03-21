@@ -121,7 +121,7 @@ class ScrapeUsers:
         # already inserted it, cuasing a multiple row / duplicate primary key error
         user_tablename = db_model.User.__tablename__
         logger.debug("attempting to lock table `%s`", user_tablename)
-        await session.execute(text(f"LOCK TABLE {user_tablename} IN ACCESS EXCLUSIVE MODE"))
+        await session.execute(text(f"LOCK TABLE \"{user_tablename}\" IN ACCESS EXCLUSIVE MODE"))
         logger.debug("lock acquired")
 
         select_statement = select(db_model.User) \
