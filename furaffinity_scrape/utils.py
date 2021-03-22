@@ -6,6 +6,7 @@ import signal
 import tarfile
 import io
 import hashlib
+import asyncio
 from logging.handlers import TimedRotatingFileHandler
 
 import furl
@@ -39,39 +40,55 @@ async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> model.Aioht
     fetch a url with an aiohttp session
     '''
 
-    logger.debug("making request to `%s`", url)
-
-    async with session.get(url.url) as response:
-
-        logger.debug("request to `%s` resulted in: `%s`", url, response.status)
-
-        response.raise_for_status()
-
-        result_bytes = await response.read()
-
-        # some of the pages we are encountering are like a mix of encodings, the outer webpage is utf-8
-        # but then the 'content' the user uploads is not utf-8 and that is causing a UnicodeDecodeError
-        # when we call `response.text()`, so here we attempt to decode with utf8 and if we get an
-        # exception, we try it again with `errors="backslashreplace"`, and we will later
-        # insert it into the database and note that it decoded incorrectly
+    for attempt_number in range(1, constants.FETCH_URL_MAX_ATTEMPTS + 1):
         try:
+            logger.debug("fetch_url: attempt `%s`, making request to `%s", attempt_number, url)
 
-            result_html = result_bytes.decode("utf-8")
-            return model.AiohttpResponseResult(
-                decoded_text=result_html,
-                binary_data=result_bytes,
-                encountered_decoding_error=False)
+            async with session.get(url.url) as response:
 
-        except UnicodeDecodeError as e:
+                logger.debug("fetch_url: attempt `%s`, request to `%s` resulted in: `%s`",
+                    attempt_number, url, response.status)
 
-            logger.warning("the bytes for url `%s` gave us a UnicodeDecodeError (`%s`), decoding with `errors=\"backslashreplace\"`",
-                url, e)
+                response.raise_for_status()
 
-            result_html = result_bytes.decode("utf-8", errors="backslashreplace")
-            return model.AiohttpResponseResult(
-                decoded_text=result_html,
-                binary_data=result_bytes,
-                encountered_decoding_error=True)
+                result_bytes = await response.read()
+
+                # some of the pages we are encountering are like a mix of encodings, the outer webpage is utf-8
+                # but then the 'content' the user uploads is not utf-8 and that is causing a UnicodeDecodeError
+                # when we call `response.text()`, so here we attempt to decode with utf8 and if we get an
+                # exception, we try it again with `errors="backslashreplace"`, and we will later
+                # insert it into the database and note that it decoded incorrectly
+                try:
+
+                    result_html = result_bytes.decode("utf-8")
+                    return model.AiohttpResponseResult(
+                        decoded_text=result_html,
+                        binary_data=result_bytes,
+                        encountered_decoding_error=False)
+
+                except UnicodeDecodeError as e:
+
+                    logger.warning("the bytes for url `%s` gave us a UnicodeDecodeError (`%s`), decoding with `errors=\"backslashreplace\"`",
+                        url, e)
+
+                    result_html = result_bytes.decode("utf-8", errors="backslashreplace")
+                    return model.AiohttpResponseResult(
+                        decoded_text=result_html,
+                        binary_data=result_bytes,
+                        encountered_decoding_error=True)
+
+        except Exception as e:
+            logger.error("fetch_url: attempt `%s`, Caught exception when making request to `%s`: `%s`",
+                attempt_number, url, e)
+
+            logger.debug("fetch_url: sleeping for `%s` seconds...",
+                constants.FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS)
+            await asyncio.sleep(constants.FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS)
+
+    logger.error("Failed to download the url `%s` after `%s` attempts!",
+        url, constants.FETCH_URL_MAX_ATTEMPTS)
+
+    raise Exception(f"Failed to download the url `{url} after {constants.FETCH_URL_MAX_ATTEMPTS} attempts!")
 
 
 
@@ -384,8 +401,6 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
     the base class doesn't know how to look for those
     '''
 
-    DATE_REPLACEMENT_STR = "{date}"
-
     def __init__(self,
         filename,
         when='h',
@@ -400,11 +415,12 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
 
         new_filename = filename
 
-        if CompressedTimedRotatingFileHandler.DATE_REPLACEMENT_STR in filename:
+        if constants.COMPRESSED_TIMED_ROTATING_FILE_HANDLER_ISO8601_REPLACEMENT in filename:
 
             date_str = arrow.utcnow().format(constants.ARROW_FILESYSTEM_SAFE_ISO8601_FORMAT)
             filesystem_safe_date_str = date_str.replace(":", "_")
-            new_filename = filename.format(date=filesystem_safe_date_str)
+            format_dict = {constants.COMPRESSED_TIMED_ROTATING_FILE_HANDLER_ISO8601_REPLACEMENT: filesystem_safe_date_str}
+            new_filename = new_filename.format_map(format_dict)
 
         super().__init__(
             new_filename,

@@ -9,6 +9,10 @@ import re
 # it outputs as `+0000` instead of `+00:00`
 ARROW_FILESYSTEM_SAFE_ISO8601_FORMAT = "YYYY-MM-DDTHH_mm_ss.SSSSSSZ"
 
+# specify this in the filename of the CompressedTimedRotatingFileHandler class to have
+# the timestamp inserted into the filename (filesystem safe version of it)
+COMPRESSED_TIMED_ROTATING_FILE_HANDLER_ISO8601_REPLACEMENT = "iso8601_timestamp"
+
 RELATIVE_URL_RE_KEY = "username"
 # from their registration page:
 # "Only letters and numbers, dash, underscore, tilde and a period are allowed."
@@ -34,6 +38,9 @@ HOCON_CONFIG_KEY_DATABASE_HOST = "host"
 HOCON_CONFIG_KEY_DATABASE_PORT = "port"
 HOCON_CONFIG_KEY_DATABASE_DATABASE = "database"
 HOCON_CONFIG_KEY_DATABASE_QUERY = "query"
+
+FETCH_URL_MAX_ATTEMPTS = 5
+FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS = 5
 
 HTTPBIN_URL = "https://httpbin.org/anything"
 
