@@ -146,6 +146,9 @@ class ScrapeUsers:
             len(users_not_in_db_set),
             users_not_in_db_set)
 
+        logger.info("found `%s` new users to add to the database: `%s`",
+            len(users_not_in_db_set), users_not_in_db_set)
+
         for iter_user_name in users_not_in_db_set:
             session.add(db_model.User(date_added=date_added, user_name=iter_user_name))
 
@@ -211,7 +214,7 @@ class ScrapeUsers:
             # `update` only works on a set
             users_found_set.update(result_set)
 
-        logger.info("found `%s` users for FA submission `%s`", len(users_found_set), fa_submission)
+        logger.info("found `%s` users", len(users_found_set))
 
         return users_found_set
 
@@ -302,7 +305,7 @@ class ScrapeUsers:
                 processed_status=model.ProcessedStatus.TODO,
                 claimed_by=self.identity_string)
 
-            logger.info("adding new submission object to db: `%s`", new_submission_row)
+            logger.debug("adding new submission object to db: `%s`", new_submission_row)
 
             sqla_session.add(new_submission_row)
 
@@ -330,6 +333,7 @@ class ScrapeUsers:
                     raw_html_bytes=None,
                     soup=None,
                     did_have_decode_error=None)
+
                 logger.info("on submission `%s`", current_fa_submission)
 
                 # now get the webpage
@@ -344,7 +348,7 @@ class ScrapeUsers:
                 # if it doesn't exist, don't do anything
                 if submission_status == model.SubmissionStatus.EXISTS:
 
-                    logger.info("submission `%s` exists, scraping html", current_fa_submission)
+                    logger.info("submission exists, scraping html")
 
                     users_found_set = self.scrape_html(current_fa_submission)
 
@@ -356,7 +360,7 @@ class ScrapeUsers:
 
                 else:
 
-                    logger.info("submission `%s` doesn't exist, not searching for users", current_fa_submission)
+                    logger.info("submission doesn't exist, not searching for users")
 
                 # now mark the submission as processed
                 current_submission_row.processed_status = model.ProcessedStatus.FINISHED

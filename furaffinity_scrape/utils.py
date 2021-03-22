@@ -64,7 +64,7 @@ async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> model.Aioht
 
         except UnicodeDecodeError as e:
 
-            logger.info("the bytes for url `%s` gave us a UnicodeDecodeError (`%s`), decoding with `errors=\"backslashreplace\"`",
+            logger.warning("the bytes for url `%s` gave us a UnicodeDecodeError (`%s`), decoding with `errors=\"backslashreplace\"`",
                 url, e)
 
             result_html = result_bytes.decode("utf-8", errors="backslashreplace")
@@ -180,12 +180,17 @@ def parse_config(stringArg):
     db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
     sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
 
+    logging_dict_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_LOGGING_DICT_KEY}"
+    logging_dict = _get_key_or_throw(conf_obj, logging_dict_key, HoconTypesEnum.CONFIG)
+
+
     # return final settings
     return model.Settings(
         time_between_requests_seconds=sleep_time_seconds,
         cookie_jar=cookie_jar,
         header_jar=header_jar,
-        sqla_url=sqla_url)
+        sqla_url=sqla_url,
+        logging_config=logging_dict)
 
 
 
@@ -336,7 +341,7 @@ def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResul
 
     hasher.update(binary_data)
     original_sha512 = hasher.hexdigest()
-    logger.info("compressing bytes of length `%s` to tar.xz (LZMA), sha512: `%s`", len(binary_data), original_sha512)
+    logger.debug("compressing bytes of length `%s` to tar.xz (LZMA), sha512: `%s`", len(binary_data), original_sha512)
 
     binary_data_fileobj = io.BytesIO()
     binary_data_fileobj.write(binary_data)
@@ -359,7 +364,7 @@ def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResul
     hasher.update(final_bytes)
     compressed_sha512 = hasher.hexdigest()
 
-    logger.info("final .tar.xz file is `%s` bytes, sha512: `%s`", len(final_bytes), compressed_sha512)
+    logger.debug("final .tar.xz file is `%s` bytes, sha512: `%s`", len(final_bytes), compressed_sha512)
 
     result = model.CompressAndHashResult(
         compressed_data=final_bytes,
@@ -368,8 +373,49 @@ def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResul
 
     return result
 
-
 class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
+    ''' class that compressed a file after a certain time period
+    when it rolls over
+
+    if the filename contains `{date}`, it will be replaced with the current date
+
+    note: this does NOT handle backupCount, probably because we
+    rename the backup files to have a tar.xz suffix and
+    the base class doesn't know how to look for those
+    '''
+
+    DATE_REPLACEMENT_STR = "{date}"
+
+    def __init__(self,
+        filename,
+        when='h',
+        interval=1,
+        backupCount=0,
+        encoding=None,
+        delay=False,
+        utc=False,
+        atTime=None,
+        errors=None):
+
+
+        new_filename = filename
+
+        if CompressedTimedRotatingFileHandler.DATE_REPLACEMENT_STR in filename:
+
+            date_str = arrow.utcnow().format(constants.ARROW_FILESYSTEM_SAFE_ISO8601_FORMAT)
+            filesystem_safe_date_str = date_str.replace(":", "_")
+            new_filename = filename.format(date=filesystem_safe_date_str)
+
+        super().__init__(
+            new_filename,
+            when,
+            interval,
+            backupCount,
+            encoding,
+            delay,
+            utc,
+            atTime,
+            errors)
 
     def doRollover(self):
 

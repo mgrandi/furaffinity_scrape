@@ -14,6 +14,7 @@ class Settings:
     cookie_jar:CookieJar = attr.ib()
     header_jar:HeaderJar = attr.ib()
     sqla_url:URL = attr.ib()
+    logging_config:dict = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:

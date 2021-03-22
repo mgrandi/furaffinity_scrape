@@ -1,6 +1,14 @@
 import enum
 import re
 
+
+# colons are invalid characters on windows
+# so `arrow.utcnow().isoformat()` returns
+# '2021-03-22T00:14:43.819410+00:00', lets replace the colons with
+# underscore, and have the timezone be `Z` instead of `ZZ` so
+# it outputs as `+0000` instead of `+00:00`
+ARROW_FILESYSTEM_SAFE_ISO8601_FORMAT = "YYYY-MM-DDTHH_mm_ss.SSSSSSZ"
+
 RELATIVE_URL_RE_KEY = "username"
 # from their registration page:
 # "Only letters and numbers, dash, underscore, tilde and a period are allowed."
@@ -16,6 +24,7 @@ HOCON_CONFIG_TOP_LEVEL_KEY = "furaffinity_scrape"
 HOCON_CONFIG_COOKIES_KEY = "cookies"
 HOCON_CONFIG_HEADERS_KEY = "headers"
 HOCON_CONFIG_TIME_BETWEEN_REQS_SECS = "time_between_requests_seconds"
+HOCON_CONFIG_LOGGING_DICT_KEY = "logging_dict"
 
 HOCON_CONFIG_DATABASE_GROUP = "database"
 HOCON_CONFIG_KEY_DATABASE_DRIVER = "driver_name"

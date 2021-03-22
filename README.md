@@ -8,8 +8,9 @@ They are split into modules
 
 ```plaintext
 
-python cli.py --help
-usage: cli.py [-h] [--log-to-file-path LOG_TO_FILE_PATH] [--no-stdout] [--verbose] --config CONFIG {scrape_users} ...
+> python cli.py --help
+
+usage: cli.py [-h] --config CONFIG {scrape_users} ...
 
 utilities for scraping furaffinity.net
 
@@ -17,12 +18,8 @@ positional arguments:
   {scrape_users}
 
 optional arguments:
-  -h, --help            show this help message and exit
-  --log-to-file-path LOG_TO_FILE_PATH
-                        log to the specified file
-  --no-stdout           if true, will not log to stdout
-  --verbose             Increase logging verbosity
-  --config CONFIG       the HOCON config file
+  -h, --help       show this help message and exit
+  --config CONFIG  the HOCON config file
 
 ```
 
