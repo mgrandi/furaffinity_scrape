@@ -409,8 +409,7 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
         encoding=None,
         delay=False,
         utc=False,
-        atTime=None,
-        errors=None):
+        atTime=None):
 
 
         new_filename = filename
@@ -430,8 +429,7 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
             encoding,
             delay,
             utc,
-            atTime,
-            errors)
+            atTime)
 
     def doRollover(self):
 
