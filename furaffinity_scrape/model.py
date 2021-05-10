@@ -5,6 +5,7 @@ import enum
 import bs4
 from sqlalchemy.engine.url import URL
 import attr
+import yarl
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
@@ -15,6 +16,8 @@ class Settings:
     header_jar:HeaderJar = attr.ib()
     sqla_url:URL = attr.ib()
     logging_config:dict = attr.ib()
+    rabbitmq_url:yarl.URL = attr.ib()
+    rabbitmq_queue_name:str = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:
@@ -85,6 +88,12 @@ class AiohttpResponseResult:
     decoded_text:str = attr.ib()
     binary_data:bytes = attr.ib()
     encountered_decoding_error:bool = attr.ib()
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class RabbitmqMessageInfo:
+
+    delivery_tag:int = attr.ib()
+    body_bytes:bytes=attr.ib()
 
 class SubmissionStatus(enum.Enum):
     UNKNOWN = "unknown"

@@ -4,8 +4,10 @@ import typing
 import asyncio
 import socket
 import os
+import json
 
 import attr
+import yarl
 from bs4 import BeautifulSoup
 import aiohttp
 from furl import furl
@@ -14,7 +16,9 @@ from sqlalchemy import select, desc, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
-
+import aiorabbit
+import aiorabbit.client
+import aiorabbit.message
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
@@ -54,6 +58,8 @@ class ScrapeUsers:
         self.config = None
         self.sqla_engine = None
         self.async_sessionmaker = None
+        self.rabbitmq_url:yarl.URL = None
+        self.rabbitmq_client = None
 
         self.html_queries_list = []
 
@@ -268,17 +274,17 @@ class ScrapeUsers:
         return evolved_fa_submission
 
 
-    async def claim_next_submission(self, sqla_session, current_date):
+    async def claim_next_submission(self, submission_id, sqla_session, current_date):
 
         async with sqla_session.begin():
 
             # lock the submission table so multiple workers don't claim the same submission
-            submission_tablename = db_model.Submission.__tablename__
-            logger.debug("attempting to lock table `%s`", submission_tablename)
-            await sqla_session.execute(text(f"LOCK TABLE {submission_tablename} IN ACCESS EXCLUSIVE MODE"))
-            logger.debug("lock acquired")
+            # submission_tablename = db_model.Submission.__tablename__
+            # logger.debug("attempting to lock table `%s`", submission_tablename)
+            # await sqla_session.execute(text(f"LOCK TABLE {submission_tablename} IN ACCESS EXCLUSIVE MODE"))
+            # logger.debug("lock acquired")
 
-            next_submission_id = -1
+            # next_submission_id = -1
 
             # DEBUG LOCKING
             # logging.debug("sleeping")
@@ -286,20 +292,20 @@ class ScrapeUsers:
             # logging.debug("sleeping done")
             # END DEBUG LOCKING
 
-            maybe_submission = await self.find_latest_claimed_submission(sqla_session)
+            # maybe_submission = await self.find_latest_claimed_submission(sqla_session)
 
-            if maybe_submission is None:
-                # start out with 1 if there are no submissions
-                next_submission_id = 1
-            else:
-                next_submission_id = maybe_submission.furaffinity_submission_id + 1
+            # if maybe_submission is None:
+            #     # start out with 1 if there are no submissions
+            #     next_submission_id = 1
+            # else:
+            #     next_submission_id = maybe_submission.furaffinity_submission_id + 1
 
-            logger.debug("submission id we are claiming: `%s`", next_submission_id)
+            logger.debug("submission id we are claiming: `%s`", submission_id)
 
 
             # insert the submission into the database to mark that are processing this
             new_submission_row = db_model.Submission(
-                furaffinity_submission_id=next_submission_id,
+                furaffinity_submission_id=submission_id,
                 date_visited=current_date,
                 submission_status=model.SubmissionStatus.UNKNOWN,
                 processed_status=model.ProcessedStatus.TODO,
@@ -311,7 +317,7 @@ class ScrapeUsers:
 
             return new_submission_row
 
-    async def one_iteration(self, aiohttp_session, sessionmaker):
+    async def one_iteration(self, submission_id, aiohttp_session, sessionmaker):
 
         current_date = arrow.utcnow()
 
@@ -321,7 +327,9 @@ class ScrapeUsers:
         async with sessionmaker() as sqla_session:
 
             # claim the latest submission and commit it
-            current_submission_row = await self.claim_next_submission(sqla_session, current_date)
+            # EDIT: now we are getting it from rabbitmq, but continue to use this to insert a submission record in the
+            # database in case it randomly dies or something and rabbitmq also loses the message
+            current_submission_row = await self.claim_next_submission(submission_id, sqla_session, current_date)
 
         async with sessionmaker() as sqla_session:
 
@@ -372,6 +380,59 @@ class ScrapeUsers:
 
             logger.debug("committing done")
 
+
+    def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
+
+        async def rabbitmq_message_received(msg: aiorabbit.message.Message) -> None:
+            logger.debug("rabbitmq_message_received() called with message: `%s`", msg)
+
+            # TODO; make it so aiorabbit Message just has a tostring
+            message_alternate_representation = model.RabbitmqMessageInfo(delivery_tag=msg.delivery_tag, body_bytes=msg.body )
+
+            try:
+
+                json_body = json.loads(msg.body.decode("utf-8"))
+
+                submission_id = json_body[constants.RABBITMQ_JSON_SUBMISSION_ID_KEY]
+
+                if not isinstance(submission_id, int):
+                    raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
+
+
+                await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
+
+                logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
+                await asyncio.sleep(self.config.time_between_requests_seconds)
+
+                logger.info("acking message `%s`", message_alternate_representation)
+                await self.rabbitmq_client.basic_ack(msg.delivery_tag)
+
+            except Exception as e:
+                # don't rethrow as i don't think it will bubble up to the right place anyway, set the stop event instead
+                logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message, setting stop event", e, message_alternate_representation)
+
+                # nack the message
+                await self.rabbitmq_client.basic_nack(msg.delivery_tag, requeue=True)
+
+                self.stop_event.set()
+
+        return rabbitmq_message_received
+
+    async def close_stuff(self):
+
+        # make sure we dispose the engine because its not in an `async with` block
+
+        if self.sqla_engine:
+            logger.info("closing sqla engine")
+            await self.sqla_engine.dispose()
+            self.sqla_engine = None
+
+        if self.rabbitmq_client and not self.rabbitmq_client.is_closed:
+            logger.info("closing rabbitmq client")
+            await self.rabbitmq_client.close()
+            self.rabbitmq_client = None
+
+
     async def run(self, parsed_args, stop_event):
 
         logger.info("Our identity string is `%s`", self.identity_string)
@@ -380,38 +441,58 @@ class ScrapeUsers:
         self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
         self.stop_event = stop_event
 
+
+        self.rabbitmq_url = self.config.rabbitmq_url
+        self.rabbitmq_client = aiorabbit.client.Client(str(self.rabbitmq_url))
+
+
         try:
+
+            # create rabbitmq stuff
+            logger.info("connecting to rabbitmq: `%s`", self.rabbitmq_client)
+            await self.rabbitmq_client.connect()
+            logger.info("rabbitmq client connected")
+
             # expire_on_commit=False will prevent attributes from being expired
             # after commit.
             self.async_sessionmaker = sessionmaker(
                 bind=self.sqla_engine, expire_on_commit=False, class_=AsyncSession
             )
 
+            # create databases if they don't exist already
             async with self.sqla_engine.begin() as conn:
                 await conn.run_sync(db_model.CustomDeclarativeBase.metadata.create_all)
 
             cookie_dict = self.config.cookie_jar.as_aiohttp_cookie_dict()
             header_dict = self.config.header_jar.as_aiohttp_header_dict()
+
             async with aiohttp.ClientSession(cookies=cookie_dict, headers=header_dict) as aiohttp_session:
 
                 # uncomment this out when we configure our own httpbin instance to not
                 # leak cookies to a public instance that we don't control
                 # await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
+                logger.info("starting rabbitmq basic_consume using consumer tag `%s`", self.identity_string)
 
-                while not self.stop_event.is_set():
-                    logger.debug("run() loop iteration")
-                    await self.one_iteration(aiohttp_session, self.async_sessionmaker)
-                    logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
-                    await asyncio.sleep(self.config.time_between_requests_seconds)
+                await self.rabbitmq_client.qos_prefetch(1)
+
+                await self.rabbitmq_client.basic_consume(
+                    self.config.rabbitmq_queue_name,
+                    callback=self.return_rabbitmq_message_received_callback(aiohttp_session, self.async_sessionmaker),
+                    consumer_tag=self.identity_string)
+
+                logger.info("waiting for stop event...")
+
+                await self.stop_event.wait()
 
                 logger.info("run() loop ended, stop_event was set! Returning")
 
+            await self.close_stuff()
+
+
         except Exception as e:
             logger.exception("uncaught exception")
-            return
+            await self.close_stuff()
+            raise e
 
-        finally:
-            # make sure we dispose the engine because its not in an `async with` block
-            await self.sqla_engine.dispose()
-            self.sqla_engine = None
+
 

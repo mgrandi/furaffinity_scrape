@@ -10,6 +10,7 @@ import asyncio
 from logging.handlers import TimedRotatingFileHandler
 
 import furl
+import yarl
 import aiohttp
 import arrow
 import sqlalchemy
@@ -125,44 +126,43 @@ class ArrowLoggingFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):
         return arrow.get("{}".format(record.created), "X").to("local").isoformat()
 
+
+def _get_key_or_throw(conf_obj, key, type:HoconTypesEnum):
+    '''
+    returns the value at the hocon config for the given key, or throws
+    an exception
+
+    @param conf_obj the config object (probably the root object)
+    @param key - the key we want from the conf_obj
+    @param type - a member of HoconTypesEnum of what type we want are expecting
+    out of the config
+    '''
+
+    try:
+        if type == HoconTypesEnum.STRING:
+            return conf_obj.get_string(key)
+        elif type == HoconTypesEnum.INT:
+            return conf_obj.get_int(key)
+        elif type == HoconTypesEnum.FLOAT:
+            return conf_obj.get_float(key)
+        elif type == HoconTypesEnum.LIST:
+            return conf_obj.get_list(key)
+        elif type == HoconTypesEnum.BOOLEAN:
+            return conf_obj.get_bool(key)
+        elif type == HoconTypesEnum.CONFIG:
+            return conf_obj.get_config(key)
+        elif type == HoconTypesEnum.ANY:
+            return conf_obj.get(key)
+        else:
+            raise Exception(f"unknown HoconTypesEnum type `{type}`")
+    except Exception as e:
+        raise Exception(
+            f"Unable to get the key `{key}`, using the type `{type}` from the config because of: `{e}`") from e
+
 def parse_config(stringArg):
     ''' parse the config into our settings object
 
     '''
-
-    def _get_key_or_throw(conf_obj, key, type:HoconTypesEnum):
-        '''
-        returns the value at the hocon config for the given key, or throws
-        an exception
-
-        @param conf_obj the config object (probably the root object)
-        @param key - the key we want from the conf_obj
-        @param type - a member of HoconTypesEnum of what type we want are expecting
-        out of the config
-        '''
-
-        try:
-            if type == HoconTypesEnum.STRING:
-                return conf_obj.get_string(key)
-            elif type == HoconTypesEnum.INT:
-                return conf_obj.get_int(key)
-            elif type == HoconTypesEnum.FLOAT:
-                return conf_obj.get_float(key)
-            elif type == HoconTypesEnum.LIST:
-                return conf_obj.get_list(key)
-            elif type == HoconTypesEnum.BOOLEAN:
-                return conf_obj.get_bool(key)
-            elif type == HoconTypesEnum.CONFIG:
-                return conf_obj.get_config(key)
-            elif type == HoconTypesEnum.ANY:
-                return conf_obj.get(key)
-            else:
-                raise Exception(f"unknown HoconTypesEnum type `{type}`")
-        except Exception as e:
-            raise Exception(
-                f"Unable to get the key `{key}`, using the type `{type}` from the config because of: `{e}`") from e
-
-
 
 
     conf_obj = hocon_config_file_type(stringArg)
@@ -200,6 +200,12 @@ def parse_config(stringArg):
     logging_dict_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_LOGGING_DICT_KEY}"
     logging_dict = _get_key_or_throw(conf_obj, logging_dict_key, HoconTypesEnum.CONFIG)
 
+    rabbitmq_url_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}"
+    rabbitmq_url = _get_rabbitmq_url_from_hocon_config(conf_obj[rabbitmq_url_key])
+
+    rabbitmq_queue_name_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}.{constants.HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME}"
+    rabbitmq_queue_name = _get_key_or_throw(conf_obj, rabbitmq_queue_name_key, HoconTypesEnum.STRING)
+
 
     # return final settings
     return model.Settings(
@@ -207,7 +213,9 @@ def parse_config(stringArg):
         cookie_jar=cookie_jar,
         header_jar=header_jar,
         sqla_url=sqla_url,
-        logging_config=logging_dict)
+        logging_config=logging_dict,
+        rabbitmq_url=rabbitmq_url,
+        rabbitmq_queue_name=rabbitmq_queue_name)
 
 
 
@@ -279,15 +287,36 @@ def isDirectoryType(filePath):
     return path_resolved
 
 
+def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
+
+    scheme = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_SCHEME, HoconTypesEnum.STRING)
+    user = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_USERNAME, HoconTypesEnum.STRING)
+    password = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PASSWORD, HoconTypesEnum.STRING)
+    host = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_HOST, HoconTypesEnum.STRING)
+    port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PORT, HoconTypesEnum.STRING)
+    path = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PATH, HoconTypesEnum.STRING)
+
+    # not supported atm
+    # query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_QUERY, HoconTypesEnum.STRING)
+
+    return yarl.URL.build(
+        scheme=scheme,
+        user=user,
+        password=password,
+        host=host,
+        port=port,
+        path=path,
+        encoded=False)
+
 def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
 
-    driver = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_DRIVER)
-    user = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_USER)
-    password = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_PASSWORD)
-    host = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_HOST)
-    port = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_PORT)
-    db = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_DATABASE)
-    query = config.get_string(constants.HOCON_CONFIG_KEY_DATABASE_QUERY)
+    driver = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_DRIVER, HoconTypesEnum.STRING)
+    user = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_USER, HoconTypesEnum.STRING)
+    password = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_PASSWORD, HoconTypesEnum.STRING)
+    host = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_HOST, HoconTypesEnum.STRING)
+    port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_PORT, HoconTypesEnum.STRING)
+    db = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_DATABASE, HoconTypesEnum.STRING)
+    query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_QUERY, HoconTypesEnum.STRING)
 
 
     return URL.create(drivername=driver,

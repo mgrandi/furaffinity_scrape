@@ -13,10 +13,15 @@ class Main():
 
     def __init__(self):
 
-        self.stop_event = asyncio.Event()
+        # DON'T CREATE THIS NOW
+        # you have to create it once the event loop is running (aka asyncio.run() gets called with the `run` method below)
+        # or else you get "got Future <Future pending> attached to a different loop" errors
+        self.stop_event = None
 
 
     async def run(self):
+
+        self.stop_event = asyncio.Event()
 
         parser = argparse.ArgumentParser(
             description="utilities for scraping furaffinity.net",
