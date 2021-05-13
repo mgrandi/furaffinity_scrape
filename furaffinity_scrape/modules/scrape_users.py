@@ -384,10 +384,11 @@ class ScrapeUsers:
     def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
 
         async def rabbitmq_message_received(msg: aiorabbit.message.Message) -> None:
-            logger.debug("rabbitmq_message_received() called with message: `%s`", msg)
 
             # TODO; make it so aiorabbit Message just has a tostring
             message_alternate_representation = model.RabbitmqMessageInfo(delivery_tag=msg.delivery_tag, body_bytes=msg.body )
+            logger.debug("rabbitmq_message_received() called with message: `%s`", message_alternate_representation)
+
 
             try:
 
