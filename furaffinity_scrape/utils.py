@@ -206,6 +206,12 @@ def parse_config(stringArg):
     rabbitmq_queue_name_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}.{constants.HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME}"
     rabbitmq_queue_name = _get_key_or_throw(conf_obj, rabbitmq_queue_name_key, HoconTypesEnum.STRING)
 
+    fa_starting_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_STARTING_SUBMISSION_ID}"
+    fa_starting_id = _get_key_or_throw(conf_obj, fa_starting_id_key, HoconTypesEnum.INT)
+
+    fa_ending_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_ENDING_SUBMISSION_ID}"
+    fa_ending_id = _get_key_or_throw(conf_obj, fa_ending_id_key, HoconTypesEnum.INT)
+
 
     # return final settings
     return model.Settings(
@@ -215,7 +221,9 @@ def parse_config(stringArg):
         sqla_url=sqla_url,
         logging_config=logging_dict,
         rabbitmq_url=rabbitmq_url,
-        rabbitmq_queue_name=rabbitmq_queue_name)
+        rabbitmq_queue_name=rabbitmq_queue_name,
+        starting_submission_id=fa_starting_id,
+        ending_submission_id=fa_ending_id)
 
 
 
@@ -295,9 +303,7 @@ def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
     host = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_HOST, HoconTypesEnum.STRING)
     port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PORT, HoconTypesEnum.STRING)
     path = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PATH, HoconTypesEnum.STRING)
-
-    # not supported atm
-    # query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_QUERY, HoconTypesEnum.STRING)
+    query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_QUERY, HoconTypesEnum.CONFIG)
 
     return yarl.URL.build(
         scheme=scheme,
@@ -306,6 +312,7 @@ def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
         host=host,
         port=port,
         path=path,
+        query=query,
         encoded=False)
 
 def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
@@ -316,8 +323,7 @@ def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
     host = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_HOST, HoconTypesEnum.STRING)
     port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_PORT, HoconTypesEnum.STRING)
     db = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_DATABASE, HoconTypesEnum.STRING)
-    query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_QUERY, HoconTypesEnum.STRING)
-
+    query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_DATABASE_QUERY, HoconTypesEnum.CONFIG)
 
     return URL.create(drivername=driver,
         username=user,

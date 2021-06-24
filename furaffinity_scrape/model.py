@@ -18,6 +18,8 @@ class Settings:
     logging_config:dict = attr.ib()
     rabbitmq_url:yarl.URL = attr.ib()
     rabbitmq_queue_name:str = attr.ib()
+    starting_submission_id:int = attr.ib()
+    ending_submission_id:int = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:
