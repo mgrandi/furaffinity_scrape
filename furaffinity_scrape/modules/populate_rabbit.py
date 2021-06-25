@@ -2,8 +2,7 @@ import logging
 import json
 import asyncio
 
-import aiorabbit
-import aiorabbit.client
+import aio_pika
 
 logger = logging.getLogger(__name__)
 
@@ -32,14 +31,18 @@ class PopulateRabbit:
 
         self.config = None
 
-        self.rabbitmq_client = None
+        self.rabbitmq_connection = None
+        self.rabbitmq_url = None
+        self.rabbitmq_channel = None
+        self.rabbitmq_queue = None
+
 
     async def close_stuff(self):
 
-        if self.rabbitmq_client and not self.rabbitmq_client.is_closed:
+        if self.rabbitmq_connection and not self.rabbitmq_connection.is_closed:
             logger.info("closing rabbitmq client")
-            await self.rabbitmq_client.close()
-            self.rabbitmq_client = None
+            await self.rabbitmq_connection.close()
+            self.rabbitmq_connection = None
 
 
     async def run(self, parsed_args, stop_event):
@@ -49,21 +52,15 @@ class PopulateRabbit:
         try:
 
             # create rabbitmq stuff
-            logger.info("connecting to rabbitmq: `%s`", self.config.rabbitmq_url)
+            self.rabbitmq_url = self.config.rabbitmq_url
 
-            self.rabbitmq_client = aiorabbit.client.Client(str(self.config.rabbitmq_url))
-
-            await self.rabbitmq_client.connect()
+            # use with_password to clear the password when printing
+            logger.info("connecting to rabbitmq url: `%r`", self.rabbitmq_url.with_password(None))
+            self.rabbitmq_connection = await aio_pika.connect_robust(str(self.rabbitmq_url))
             logger.info("rabbitmq client connected")
 
-            # for enabling publisher confirmation of published messages.
-            #await self.rabbitmq_client.confirm_select()
+            self.rabbitmq_channel = await self.rabbitmq_connection.channel()
 
-
-            # consumer_tag = await self.rabbitmq_client.basic_consume(self.config.rabbitmq_queue_name, callback=self.on_message)
-
-            # logger.info('Started consuming on queue %s with consumer tag %s',
-            #          self.config.rabbitmq_queue_name, consumer_tag)
 
             logger.info("populating rabbitmq with submission ids `%s` to `%s`", self.config.starting_submission_id, self.config.ending_submission_id)
 
@@ -81,10 +78,11 @@ class PopulateRabbit:
                 message_body = f"{iter_fa_submission_id}"
 
                 # see https://aiorabbit.readthedocs.io/en/latest/api.html#aiorabbit.client.Client.publish
-                publish_result = await self.rabbitmq_client.publish(
-                    exchange="", # the exchange by default is `amq.direct`, but we need this to be the empty string to route it to the queue in `routing_key`
-                    routing_key=self.config.rabbitmq_queue_name,
-                    message_body=message_body)
+
+                message_to_publish = aio_pika.Message(body=message_body.encode("utf-8"))
+                publish_result = await self.rabbitmq_channel.default_exchange.publish(
+                    message=message_to_publish,
+                    routing_key=self.config.rabbitmq_queue_name)
 
 
                 # if not publish_result:

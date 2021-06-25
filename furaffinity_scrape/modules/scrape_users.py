@@ -16,9 +16,8 @@ from sqlalchemy import select, desc, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
-import aiorabbit
-import aiorabbit.client
-import aiorabbit.message
+
+import aio_pika
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
@@ -60,6 +59,8 @@ class ScrapeUsers:
         self.async_sessionmaker = None
         self.rabbitmq_url:yarl.URL = None
         self.rabbitmq_client = None
+        self.rabbitmq_channel = None
+        self.rabbitmq_queue = None
 
         self.html_queries_list = []
 
@@ -383,18 +384,16 @@ class ScrapeUsers:
 
     def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
 
-        async def rabbitmq_message_received(msg: aiorabbit.message.Message) -> None:
+        async def rabbitmq_message_received(msg: aio_pika.IncomingMessage) -> None:
 
-            # TODO; make it so aiorabbit Message just has a tostring
             message_alternate_representation = model.RabbitmqMessageInfo(delivery_tag=msg.delivery_tag, body_bytes=msg.body )
             logger.debug("rabbitmq_message_received() called with message: `%s`", message_alternate_representation)
 
-
             try:
 
-                json_body = json.loads(msg.body.decode("utf-8"))
-
-                submission_id = json_body[constants.RABBITMQ_JSON_SUBMISSION_ID_KEY]
+                submission_str = msg.body.decode("utf-8")
+                logger.debug("submission id as string: `%s`", submission_str)
+                submission_id = int(submission_str)
 
                 if not isinstance(submission_id, int):
                     raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
@@ -406,14 +405,14 @@ class ScrapeUsers:
                 await asyncio.sleep(self.config.time_between_requests_seconds)
 
                 logger.info("acking message `%s`", message_alternate_representation)
-                await self.rabbitmq_client.basic_ack(msg.delivery_tag)
+                await msg.ack(multiple=False)
 
             except Exception as e:
                 # don't rethrow as i don't think it will bubble up to the right place anyway, set the stop event instead
                 logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message, setting stop event", e, message_alternate_representation)
 
                 # nack the message
-                await self.rabbitmq_client.basic_nack(msg.delivery_tag, requeue=True)
+                await msg.reject(requeue=True)
 
                 self.stop_event.set()
 
@@ -428,10 +427,10 @@ class ScrapeUsers:
             await self.sqla_engine.dispose()
             self.sqla_engine = None
 
-        if self.rabbitmq_client and not self.rabbitmq_client.is_closed:
+        if self.rabbitmq_connection and not self.rabbitmq_connection.is_closed:
             logger.info("closing rabbitmq client")
-            await self.rabbitmq_client.close()
-            self.rabbitmq_client = None
+            await self.rabbitmq_connection.close()
+            self.rabbitmq_connection = None
 
 
     async def run(self, parsed_args, stop_event):
@@ -442,17 +441,24 @@ class ScrapeUsers:
         self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
         self.stop_event = stop_event
 
-
+        # create rabbitmq stuff
         self.rabbitmq_url = self.config.rabbitmq_url
-        self.rabbitmq_client = aiorabbit.client.Client(str(self.rabbitmq_url))
+
+        # use with_password to clear the password when printing
+        logger.info("connecting to rabbitmq url: `%r`", self.rabbitmq_url.with_password(None))
+        self.rabbitmq_connection = await aio_pika.connect_robust(str(self.rabbitmq_url))
+        logger.info("rabbitmq client connected")
+
+        self.rabbitmq_channel = await self.rabbitmq_connection.channel()
+
+        # Maximum message count which will be
+        # processing at the same time.
+        await self.rabbitmq_channel.set_qos(prefetch_count=1)
+
+        self.rabbitmq_queue = await self.rabbitmq_channel.get_queue(name=self.config.rabbitmq_queue_name, ensure=True)
 
 
         try:
-
-            # create rabbitmq stuff
-            logger.info("connecting to rabbitmq: `%s`", self.rabbitmq_client)
-            await self.rabbitmq_client.connect()
-            logger.info("rabbitmq client connected")
 
             # expire_on_commit=False will prevent attributes from being expired
             # after commit.
@@ -474,10 +480,7 @@ class ScrapeUsers:
                 # await utils.log_aiohttp_sessions_and_cookies(aiohttp_session)
                 logger.info("starting rabbitmq basic_consume using consumer tag `%s`", self.identity_string)
 
-                await self.rabbitmq_client.qos_prefetch(1)
-
-                await self.rabbitmq_client.basic_consume(
-                    self.config.rabbitmq_queue_name,
+                await self.rabbitmq_queue.consume(
                     callback=self.return_rabbitmq_message_received_callback(aiohttp_session, self.async_sessionmaker),
                     consumer_tag=self.identity_string)
 
