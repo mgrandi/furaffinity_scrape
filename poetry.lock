@@ -1,4 +1,19 @@
 [[package]]
+name = "aio-pika"
+version = "6.8.0"
+description = "Wrapper for the aiormq for asyncio and humans."
+category = "main"
+optional = false
+python-versions = ">3.5.*, <4"
+
+[package.dependencies]
+aiormq = ">=3.2.3,<4"
+yarl = "*"
+
+[package.extras]
+develop = ["aiomisc (>=10.1.6,<10.2.0)", "async-generator", "coverage (!=4.3)", "coveralls", "pylava", "pytest", "pytest-cov", "shortuuid", "nox", "sphinx", "sphinx-autobuild", "timeout-decorator", "tox (>=2.4)"]
+
+[[package]]
 name = "aiodns"
 version = "3.0.0"
 description = "Simple DNS resolver for asyncio"
@@ -32,19 +47,19 @@ yarl = ">=1.0,<2.0"
 speedups = ["aiodns", "brotlipy", "cchardet"]
 
 [[package]]
-name = "aiorabbit"
-version = "1.0.0a1"
-description = "An AsyncIO RabbitMQ Client Library"
+name = "aiormq"
+version = "3.3.1"
+description = "Pure python AMQP asynchronous client library"
 category = "main"
 optional = false
-python-versions = "*"
+python-versions = ">3.5.*"
 
 [package.dependencies]
-pamqp = ">=3.0.0a6,<4"
-yarl = ">=1.4.2,<2"
+pamqp = "2.3.0"
+yarl = "*"
 
 [package.extras]
-test = ["coverage", "flake8", "flake8-comprehensions", "flake8-deprecated", "flake8-import-order", "flake8-print", "flake8-quotes", "flake8-rst-docstrings", "flake8-tuple", "mypy", "pygments"]
+develop = ["aiomisc (>=11.0,<12.0)", "async-generator", "coverage (!=4.3)", "coveralls", "pylava", "pytest", "pytest-cov", "tox (>=2.4)"]
 
 [[package]]
 name = "arrow"
@@ -219,15 +234,14 @@ six = ">=1.8.0"
 
 [[package]]
 name = "pamqp"
-version = "3.0.1"
+version = "2.3.0"
 description = "RabbitMQ Focused AMQP low-level library"
 category = "main"
 optional = false
-python-versions = ">=3.6"
+python-versions = "*"
 
 [package.extras]
-codegen = ["lxml", "requests", "yapf"]
-test = ["coverage", "flake8", "flake8-comprehensions", "flake8-deprecated", "flake8-import-order", "flake8-print", "flake8-quotes", "flake8-rst-docstrings", "flake8-tuple", "nose"]
+codegen = ["lxml"]
 
 [[package]]
 name = "pycares"
@@ -390,9 +404,13 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.8"
-content-hash = "52dfb2d4b166fe38403afac38b2b8b29ce493867d62cd1c3cf9b971693d17c35"
+content-hash = "cc686fa6a339002377513b0b7231b704c06183cb132dc63771bf9bad8e5ce492"
 
 [metadata.files]
+aio-pika = [
+    {file = "aio-pika-6.8.0.tar.gz", hash = "sha256:1d4305a5f78af3857310b4fe48348cdcf6c097e0e275ea88c2cd08570531a369"},
+    {file = "aio_pika-6.8.0-py3-none-any.whl", hash = "sha256:e69afef8695f47c5d107bbdba21bdb845d5c249acb3be53ef5c2d497b02657c0"},
+]
 aiodns = [
     {file = "aiodns-3.0.0-py3-none-any.whl", hash = "sha256:2b19bc5f97e5c936638d28e665923c093d8af2bf3aa88d35c43417fa25d136a2"},
     {file = "aiodns-3.0.0.tar.gz", hash = "sha256:946bdfabe743fceeeb093c8a010f5d1645f708a241be849e17edfb0e49e08cd6"},
@@ -436,8 +454,9 @@ aiohttp = [
     {file = "aiohttp-3.7.4.post0-cp39-cp39-win_amd64.whl", hash = "sha256:02f46fc0e3c5ac58b80d4d56eb0a7c7d97fcef69ace9326289fb9f1955e65cfe"},
     {file = "aiohttp-3.7.4.post0.tar.gz", hash = "sha256:493d3299ebe5f5a7c66b9819eacdcfbbaaf1a8e84911ddffcdc48888497afecf"},
 ]
-aiorabbit = [
-    {file = "aiorabbit-1.0.0a1.tar.gz", hash = "sha256:9233f1a9e2a3cd14b93b165725e7ae71760bb3b11169a17e46cfbb9d57a96870"},
+aiormq = [
+    {file = "aiormq-3.3.1-py3-none-any.whl", hash = "sha256:e584dac13a242589aaf42470fd3006cb0dc5aed6506cbd20357c7ec8bbe4a89e"},
+    {file = "aiormq-3.3.1.tar.gz", hash = "sha256:8218dd9f7198d6e7935855468326bbacf0089f926c70baa8dd92944cb2496573"},
 ]
 arrow = [
     {file = "arrow-0.17.0-py2.py3-none-any.whl", hash = "sha256:e098abbd9af3665aea81bdd6c869e93af4feb078e98468dd351c383af187aac5"},
@@ -741,7 +760,8 @@ orderedmultidict = [
     {file = "orderedmultidict-1.0.1.tar.gz", hash = "sha256:04070bbb5e87291cc9bfa51df413677faf2141c73c61d2a5f7b26bea3cd882ad"},
 ]
 pamqp = [
-    {file = "pamqp-3.0.1.tar.gz", hash = "sha256:0a9b49bde3f554ec49b47ebdb789133979985f24d5f4698935ed589a2d4392a4"},
+    {file = "pamqp-2.3.0-py2.py3-none-any.whl", hash = "sha256:2f81b5c186f668a67f165193925b6bfd83db4363a6222f599517f29ecee60b02"},
+    {file = "pamqp-2.3.0.tar.gz", hash = "sha256:5cd0f5a85e89f20d5f8e19285a1507788031cfca4a9ea6f067e3cf18f5e294e8"},
 ]
 pycares = [
     {file = "pycares-4.0.0-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:db5a533111a3cfd481e7e4fb2bf8bef69f4fa100339803e0504dd5aecafb96a5"},
