@@ -59,7 +59,7 @@ class PopulateRabbit:
             self.rabbitmq_connection = await aio_pika.connect_robust(str(self.rabbitmq_url))
             logger.info("rabbitmq client connected")
 
-            self.rabbitmq_channel = await self.rabbitmq_connection.channel()
+            self.rabbitmq_channel = await self.rabbitmq_connection.channel(publisher_confirms=False)
 
 
             logger.info("populating rabbitmq with submission ids `%s` to `%s`", self.config.starting_submission_id, self.config.ending_submission_id)
