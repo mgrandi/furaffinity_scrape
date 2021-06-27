@@ -145,7 +145,7 @@ class ScrapeUsers:
 
             upsert_statement = insert(db_model.User.__table__).values(core_insert_values_list)
 
-            upsert_statement.on_conflict_do_nothing(constraint="PK-user-user_id")
+            do_nothing_upsert_statement = upsert_statement.on_conflict_do_nothing(constraint="PK-user-user_id")
 
             # NOTE: potentially very verbose, uncomment for debugging
             # logger.debug("upsert statement: `%s`", upsert_statement)
@@ -153,7 +153,7 @@ class ScrapeUsers:
             conn = await session.connection()
 
             logger.debug("executing upsert statement")
-            await conn.execute(upsert_statement)
+            await conn.execute(do_nothing_upsert_statement)
             logger.debug("upsert statement finished successfully")
 
         else:
