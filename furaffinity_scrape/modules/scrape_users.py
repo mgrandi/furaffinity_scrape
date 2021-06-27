@@ -119,17 +119,13 @@ class ScrapeUsers:
 
         see https://docs.sqlalchemy.org/en/14/dialects/postgresql.html#insert-on-conflict-upsert
 
-        but that requires us dropping down to `core`, so i'm doing it the hard way
+        note: originally we did this in ORM mode and asked the database for the list of users that we do a diff and see which
+        users were already in the DB, and then inserted the missing users. We still do that, but now we do a upsert
+        which means that if two workers have a race condition trying to add the same user, it won't have one worker fail,
+        the losing worker will just have the "on conflict do nothing" take place and everyone is happy, and no database
+        locking!
 
-        where we ask for all of the users and then diff them
         '''
-
-        # lock the user table so multiple things don't attempt to insert a user after another worker has
-        # already inserted it, cuasing a multiple row / duplicate primary key error
-        user_tablename = db_model.User.__tablename__
-        logger.debug("attempting to lock table `%s`", user_tablename)
-        await session.execute(text(f"LOCK TABLE \"{user_tablename}\" IN ACCESS EXCLUSIVE MODE"))
-        logger.debug("lock acquired")
 
         select_statement = select(db_model.User) \
             .filter(db_model.User.user_name.in_(users_found_set))
@@ -156,8 +152,30 @@ class ScrapeUsers:
         logger.info("found `%s` new users to add to the database: `%s`",
             len(users_not_in_db_set), users_not_in_db_set)
 
-        for iter_user_name in users_not_in_db_set:
-            session.add(db_model.User(date_added=date_added, user_name=iter_user_name))
+        # only do this if we have > 0 users to add, otherwise we will get an integrity error trying to add a
+        # user that has null values
+        if len(users_not_in_db_set) > 0:
+
+            core_insert_values_list = []
+            for iter_user_name in users_not_in_db_set:
+                core_insert_values_list.append({"date_added": date_added, "user_name": iter_user_name})
+
+            upsert_statement = insert(db_model.User.__table__).values(core_insert_values_list)
+
+            upsert_statement.on_conflict_do_nothing(constraint="PK-user-user_id")
+
+            # NOTE: potentially very verbose, uncomment for debugging
+            # logger.debug("upsert statement: `%s`", upsert_statement)
+            #
+            conn = await session.connection()
+
+            logger.debug("executing upsert statement")
+            await conn.execute(upsert_statement)
+            logger.debug("upsert statement finished successfully")
+
+        else:
+
+            logger.debug("no users to add to the database, not upserting anything")
 
     def does_submission_exist(self, current_fa_submission:model.FASubmission) -> model.SubmissionStatus:
         '''
@@ -276,47 +294,84 @@ class ScrapeUsers:
 
 
     async def claim_next_submission(self, submission_id, sqla_session, current_date):
+        '''
+
+        "claims" the next submission
+
+        this checks to see if we have a row in the submission table already for this submission, and if we do
+        we see if it is finished or not
+
+        if it was finished, then we will return None, to let the caller know that this was already finished but not acked
+        for some reason (crashed at the perfect time?), since we use rabbitmq for the queueing, it is possible that
+        it was finished but then it never got a chance to ack the message so it got returned to the queue
+
+        if it wasn't finished, then we will just use that submission row and update the date
+
+        if we DIDN'T find an existing submission, we will create a new FASubmission object and add it to the session
+        where it will be added immediately to the database
+
+        '''
 
         async with sqla_session.begin():
 
-            # lock the submission table so multiple workers don't claim the same submission
-            # submission_tablename = db_model.Submission.__tablename__
-            # logger.debug("attempting to lock table `%s`", submission_tablename)
-            # await sqla_session.execute(text(f"LOCK TABLE {submission_tablename} IN ACCESS EXCLUSIVE MODE"))
-            # logger.debug("lock acquired")
+            # first off, see if this submission already was claimed by another worker and then that worker
+            # crashed or something, returning the message to the queue. if that did happen, then we can use the existing
+            # submission object
+            does_submission_exist_stmt = select(db_model.Submission).where(db_model.Submission.furaffinity_submission_id == submission_id)
 
-            # next_submission_id = -1
+            maybe_existing_fa_submission_execute_result = await sqla_session.execute(does_submission_exist_stmt)
 
-            # DEBUG LOCKING
-            # logging.debug("sleeping")
-            # await asyncio.sleep(10)
-            # logging.debug("sleeping done")
-            # END DEBUG LOCKING
+            # TODO: figure out this, i say 'one or None', but i get back a sequence , so i still have to do '[0]' on it,
+            # i guess its better to return a sequence always so that way you aren't accidentally trying to get a index of a non sequence
+            # if it returns only one?
+            maybe_existing_fa_submission_sequence = maybe_existing_fa_submission_execute_result.one_or_none()
 
-            # maybe_submission = await self.find_latest_claimed_submission(sqla_session)
+            logger.debug("Checking to see if there is a `Submission` row in the database for fa submission id `%s`, result is: `%s`",
+                submission_id, maybe_existing_fa_submission_sequence)
 
-            # if maybe_submission is None:
-            #     # start out with 1 if there are no submissions
-            #     next_submission_id = 1
-            # else:
-            #     next_submission_id = maybe_submission.furaffinity_submission_id + 1
+            if maybe_existing_fa_submission_sequence:
 
-            logger.debug("submission id we are claiming: `%s`", submission_id)
+                maybe_existing_fa_submission = maybe_existing_fa_submission_sequence[0]
 
+                # there was an existing row, see if it was done already
+                if maybe_existing_fa_submission.processed_status == model.ProcessedStatus.FINISHED:
 
-            # insert the submission into the database to mark that are processing this
-            new_submission_row = db_model.Submission(
-                furaffinity_submission_id=submission_id,
-                date_visited=current_date,
-                submission_status=model.SubmissionStatus.UNKNOWN,
-                processed_status=model.ProcessedStatus.TODO,
-                claimed_by=self.identity_string)
+                    # submission was already finished, return None to let caller know to skip this one
+                    logger.info("Skipping submission with the FA submission id `%s` because it was already started, and finished in the database: `%s`",
+                        submission_id, maybe_existing_fa_submission)
+                    return None
 
-            logger.debug("adding new submission object to db: `%s`", new_submission_row)
+                else:
 
-            sqla_session.add(new_submission_row)
+                    # there was an existing row, but it was not finished already. Set a new date, and return it
+                    logger.info("Submission with the FA submission id of `%s` was started but not finished, reusing existing submission object: `%s`",
+                        maybe_existing_fa_submission)
 
-            return new_submission_row
+                    maybe_existing_fa_submission.date_visited = current_date
+
+                    sqla_session.add(maybe_existing_fa_submission)
+
+                    return maybe_existing_fa_submission
+
+            else:
+
+                # no existing row was found, this is the expected path, create a new submission row
+
+                logger.info("Submission with the FA submission id `%s` doesn't already exist in the database, creating a new one", submission_id)
+
+                # insert the submission into the database to mark that are processing this
+                new_submission_row = db_model.Submission(
+                    furaffinity_submission_id=submission_id,
+                    date_visited=current_date,
+                    submission_status=model.SubmissionStatus.UNKNOWN,
+                    processed_status=model.ProcessedStatus.TODO,
+                    claimed_by=self.identity_string)
+
+                logger.debug("adding new submission object to db: `%s`", new_submission_row)
+
+                sqla_session.add(new_submission_row)
+
+                return new_submission_row
 
     async def one_iteration(self, submission_id, aiohttp_session, sessionmaker):
 
@@ -331,6 +386,13 @@ class ScrapeUsers:
             # EDIT: now we are getting it from rabbitmq, but continue to use this to insert a submission record in the
             # database in case it randomly dies or something and rabbitmq also loses the message
             current_submission_row = await self.claim_next_submission(submission_id, sqla_session, current_date)
+
+            if not current_submission_row:
+
+                # if it was None, that means we have picked up a rabbit message for a submission that was started
+                # and already finished, just return here so we skip the submission
+
+                return
 
         async with sessionmaker() as sqla_session:
 
@@ -397,7 +459,6 @@ class ScrapeUsers:
 
                 if not isinstance(submission_id, int):
                     raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
-
 
                 await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
 
