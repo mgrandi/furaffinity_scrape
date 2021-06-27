@@ -62,6 +62,9 @@ class ScrapeUsers:
         self.rabbitmq_channel = None
         self.rabbitmq_queue = None
 
+        self.time_to_wait_for_additional_messages_at_close = 5
+
+
         self.html_queries_list = []
 
         self.create_html_queries()
@@ -325,7 +328,7 @@ class ScrapeUsers:
 
                     # there was an existing row, but it was not finished already. Set a new date, and return it
                     logger.info("Submission with the FA submission id of `%s` was started but not finished, reusing existing submission object: `%s`",
-                        maybe_existing_fa_submission)
+                        submission_id, maybe_existing_fa_submission)
 
                     maybe_existing_fa_submission.date_visited = current_date
 
@@ -528,6 +531,13 @@ class ScrapeUsers:
                 logger.info("waiting for stop event...")
 
                 await self.stop_event.wait()
+
+                logger.info("telling queue `%s` to cancel the consumer `%s`", self.rabbitmq_queue, self.identity_string)
+                await self.rabbitmq_queue.cancel(consumer_tag=self.identity_string)
+
+                logger.info("waiting for `%s` seconds to wait for any outstanding messages to finish...",
+                    self.time_to_wait_for_additional_messages_at_close)
+                await asyncio.sleep(self.time_to_wait_for_additional_messages_at_close)
 
                 logger.info("run() loop ended, stop_event was set! Returning")
 
