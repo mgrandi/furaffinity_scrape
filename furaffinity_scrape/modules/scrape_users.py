@@ -90,26 +90,6 @@ class ScrapeUsers:
 
         self.html_queries_list.extend(to_add_list)
 
-    async def find_latest_claimed_submission(self, session:AsyncSession) -> typing.Optional[db_model.Submission]:
-
-        logger.debug("fetching latest claimed submission")
-        stmt = select(db_model.Submission).order_by(desc("submission_id")).limit(1)
-
-        res = await session.execute(stmt)
-
-
-        maybe_result = res.one_or_none()
-
-        if maybe_result:
-
-            actual_submission = maybe_result["Submission"]
-            logger.debug("latest claimed Submission result: `%s`", actual_submission)
-            return actual_submission
-
-        else:
-            logger.debug("didn't find any submissions")
-            return None
-
     async def update_or_ignore_found_users(self, users_found_set:set, session:AsyncSession, date_added:arrow.arrow.Arrow):
         '''
         queries the database for all of the users found in the set
