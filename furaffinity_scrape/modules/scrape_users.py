@@ -145,7 +145,13 @@ class ScrapeUsers:
 
             upsert_statement = insert(db_model.User.__table__).values(core_insert_values_list)
 
-            do_nothing_upsert_statement = upsert_statement.on_conflict_do_nothing(constraint="PK-user-user_id")
+            # you need the escaped quotes or else it will do a syntax error
+            # like:
+            # Exception `(sqlalchemy.dialects.postgresql.asyncpg.ProgrammingError) <class 'asyncpg.exceptions.PostgresSyntaxError'>: syntax error at or near "-"
+            # [SQL: INSERT INTO "user" (date_added, user_name) VALUES (%s, %s) ON CONFLICT ON CONSTRAINT PK-user-user_id DO NOTHING]
+            # [parameters: (datetime.datetime(2021, 6, 27, 17, 47, 56, 531642), 'deathking254')]
+            #
+            do_nothing_upsert_statement = upsert_statement.on_conflict_do_nothing(constraint="\"PK-user-user_id\"")
 
             # NOTE: potentially very verbose, uncomment for debugging
             # logger.debug("upsert statement: `%s`", upsert_statement)
