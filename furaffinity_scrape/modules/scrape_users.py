@@ -151,7 +151,7 @@ class ScrapeUsers:
             # [SQL: INSERT INTO "user" (date_added, user_name) VALUES (%s, %s) ON CONFLICT ON CONSTRAINT PK-user-user_id DO NOTHING]
             # [parameters: (datetime.datetime(2021, 6, 27, 17, 47, 56, 531642), 'deathking254')]
             #
-            do_nothing_upsert_statement = upsert_statement.on_conflict_do_nothing(constraint="\"PK-user-user_id\"")
+            do_nothing_upsert_statement = upsert_statement.on_conflict_do_nothing()
 
             # NOTE: potentially very verbose, uncomment for debugging
             # logger.debug("upsert statement: `%s`", upsert_statement)
