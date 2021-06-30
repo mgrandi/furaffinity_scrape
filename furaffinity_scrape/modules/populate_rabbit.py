@@ -88,7 +88,7 @@ class PopulateRabbit:
                 # if not publish_result:
                 #     raise Exception(f"error publishing message for submission id `{iter_fa_submission_id}`")
 
-                if iter_fa_submission_id % 10000 == 0:
+                if iter_fa_submission_id % 50000 == 0:
 
                     logger.info("%s/%s done", iter_fa_submission_id, self.config.ending_submission_id)
                     await asyncio.sleep(10)
