@@ -2,8 +2,6 @@ from __future__ import annotations
 import logging
 import typing
 import asyncio
-import socket
-import os
 import json
 
 import attr
@@ -50,9 +48,7 @@ class ScrapeUsers:
 
     def __init__(self):
 
-        fqdn = socket.getfqdn()
-        pid = os.getpid()
-        self.identity_string = f"FQDN[{fqdn}]-PID[{pid}]"
+        self.identity_string = None
         self.stop_event = None
         self.config = None
         self.sqla_engine = None
@@ -486,6 +482,8 @@ class ScrapeUsers:
 
     async def run(self, parsed_args, stop_event):
 
+
+        self.identity_string = utils.get_identity_string()
         logger.info("Our identity string is `%s`", self.identity_string)
 
         self.config = parsed_args.config

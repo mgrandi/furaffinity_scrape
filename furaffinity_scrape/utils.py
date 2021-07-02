@@ -7,6 +7,9 @@ import tarfile
 import io
 import hashlib
 import asyncio
+import subprocess
+import socket
+import os
 from logging.handlers import TimedRotatingFileHandler
 
 import furl
@@ -26,6 +29,61 @@ from furaffinity_scrape.constants import HoconTypesEnum
 from furaffinity_scrape import model
 
 logger = logging.getLogger(__name__)
+
+
+def get_identity_string():
+    '''
+    returns a string suitable for identifying this machine, PID and version of code running
+
+    @return a string
+    '''
+
+    fqdn = socket.getfqdn()
+    pid = os.getpid()
+    git_describe_output = get_git_describe_output()
+    identity_string = f"FQDN[{fqdn}]-PID[{pid}]-VER[{git_describe_output}]"
+
+    return identity_string
+
+def get_git_describe_output(abbreviate_hash_length=20):
+    '''
+    runs git describe on the root folder of the git repository
+
+    note: this is kinda hacky, and relies on this being run inside the git repo
+
+    @param abbreviate_hash_length the number of characters the git hash itself will be abbreviated to
+    0 means no characters, 40 means the entire thing
+    '''
+
+    git_repo_path = pathlib.Path(__file__).joinpath("../../.git").resolve()
+
+    # these arguments make it so that it will show the full commit hash + if it is dirty or not
+    # even if there are no tags
+    # if there is a tag, it will include it along with how many commits it is above that tag
+    # examples:
+    # `v0.1.0-5-g28074bff058fe6cdb73297cab09e2fd14ca3a9ca-dirty`
+    # (after we remove that tag)
+    # `28074bff058fe6cdb73297cab09e2fd14ca3a9ca-dirty`
+    git_describe_args = [
+        "git",
+        "--git-dir",
+        git_repo_path,
+        "describe",
+        "--tags",
+        "--first-parent",
+        f"--abbrev={abbreviate_hash_length}", # HAS to be on the same line or else you get `fatal: --dirty is incompatible with commit-ishes`
+        "--long",
+        "--always",
+        "--dirty",
+    ]
+
+    logger.debug("describe args: `%s`", git_describe_args)
+
+    git_describe_result = subprocess.run(git_describe_args, capture_output=True)
+
+    stdout = git_describe_result.stdout.decode("utf-8").strip()
+    logger.debug("git describe result: `%s`", stdout)
+    return stdout
 
 async def log_aiohttp_sessions_and_cookies(session:aiohttp.ClientSession):
     '''
