@@ -4,6 +4,8 @@ import asyncio
 
 import aio_pika
 
+from furaffinity_scrape import utils
+
 logger = logging.getLogger(__name__)
 
 class PopulateRabbit:
@@ -35,6 +37,7 @@ class PopulateRabbit:
         self.rabbitmq_url = None
         self.rabbitmq_channel = None
         self.rabbitmq_queue = None
+        self.identity_string = None
 
 
     async def close_stuff(self):
@@ -48,6 +51,11 @@ class PopulateRabbit:
     async def run(self, parsed_args, stop_event):
 
         self.config = parsed_args.config
+
+        # TODO: is there a way to get this to be the consumer tag, but for publishers?
+        # doesn't matter too much I guess
+        self.identity_string = utils.get_identity_string()
+        logger.info("Our identity string is `%s`", self.identity_string)
 
         try:
 
