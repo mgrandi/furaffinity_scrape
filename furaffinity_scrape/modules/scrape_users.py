@@ -337,6 +337,7 @@ class ScrapeUsers:
                         submission_id, maybe_existing_fa_submission)
 
                     maybe_existing_fa_submission.date_visited = current_date
+                    maybe_existing_fa_submission.claimed_by = self.identity_string
 
                     sqla_session.add(maybe_existing_fa_submission)
 
