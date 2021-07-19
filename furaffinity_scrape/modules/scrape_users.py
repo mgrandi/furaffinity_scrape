@@ -426,9 +426,8 @@ class ScrapeUsers:
                 # one with this FA submission
                 logger.info("finished with submission `%s`", current_fa_submission)
                 logger.debug("committing")
-                await sqla_session.commit()
-                logger.debug("committing done")
-            logger.debug("begin() context manager exited, session closed")
+
+            logger.debug("committing done")
 
 
     def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
