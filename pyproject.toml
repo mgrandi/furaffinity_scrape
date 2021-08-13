@@ -18,7 +18,7 @@ SQLAlchemy-Utils = "^0.37.8"
 sqlalchemy-repr = "^0.0.2"
 furl = "^2.1.0"
 aiohttp = {extras = ["speedups"], version = "^3.7.4"}
-asyncpg = "^0.23.0"
+asyncpg = "^0.24.0"
 yarl = "^1.6.3"
 aio-pika = "^6.8.0"
 
