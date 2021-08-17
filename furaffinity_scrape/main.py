@@ -10,6 +10,12 @@ from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers
 from furaffinity_scrape.modules.populate_rabbit import PopulateRabbit
 
+
+def start():
+    m = Main()
+    asyncio.run(m.run(), debug=False)
+
+
 class Main():
 
     def __init__(self):
