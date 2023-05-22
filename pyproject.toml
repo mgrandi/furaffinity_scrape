@@ -6,24 +6,25 @@ authors = ["Mark Grandi <markgrandi@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-arrow = "^1.1.1"
-attrs = "^21.2.0"
-logging_tree = "^1.8.1"
-beautifulsoup4 = "^4.9.3"
-lxml = "^4.6.2"
-pyhocon = "^0.3.57"
-SQLAlchemy = "^1.4.20"
-SQLAlchemy-Utils = "^0.37.8"
-sqlalchemy-repr = "^0.0.2"
+python = "^3.10"
+arrow = "^1.2.3"
+attrs = "^23.1.0"
+logging_tree = "^1.9"
+beautifulsoup4 = "^4.12.2"
+lxml = "^4.9.2"
+pyhocon = "^0.3.60"
+SQLAlchemy = "^2.0.15"
+SQLAlchemy-Utils = "^0.41.1"
+sqlalchemy-repr = "^0.1.0"
 furl = "^2.1.0"
-aiohttp = {extras = ["speedups"], version = "^3.7.4"}
-asyncpg = "^0.24.0"
-yarl = "^1.6.3"
-aio-pika = "^6.8.0"
+aiohttp = "^3.8.4"
+asyncpg = "^0.27.0"
+yarl = "^1.9.2"
+aio-pika = "^9.0.7"
+cython = "^0.29.34"
 
 [tool.poetry.dev-dependencies]
-wheel = "^0.36.2"
+wheel = "^0.40.0"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
