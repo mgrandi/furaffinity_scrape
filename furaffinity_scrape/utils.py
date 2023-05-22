@@ -12,7 +12,6 @@ import socket
 import os
 from logging.handlers import TimedRotatingFileHandler
 
-import furl
 import yarl
 import aiohttp
 import arrow
@@ -91,10 +90,10 @@ async def log_aiohttp_sessions_and_cookies(session:aiohttp.ClientSession):
     to get our headers and cookies
     '''
 
-    httpbin_str_result = await fetch_url(session, furl.furl(constants.HTTPBIN_URL))
+    httpbin_str_result = await fetch_url(session, yarl.URL(constants.HTTPBIN_URL))
     logger.debug("aiohttp ClientSession headers and cookies: `%s`", httpbin_str_result)
 
-async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> model.AiohttpResponseResult:
+async def fetch_url(session:aiohttp.ClientSession, url:yarl.URL) -> model.AiohttpResponseResult:
     '''
     fetch a url with an aiohttp session
     '''
@@ -103,7 +102,7 @@ async def fetch_url(session:aiohttp.ClientSession, url:furl.furl) -> model.Aioht
         try:
             logger.debug("fetch_url: attempt `%s`, making request to `%s", attempt_number, url)
 
-            async with session.get(url.url) as response:
+            async with session.get(url) as response:
 
                 logger.debug("fetch_url: attempt `%s`, request to `%s` resulted in: `%s`",
                     attempt_number, url, response.status)

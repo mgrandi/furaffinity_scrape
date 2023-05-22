@@ -8,7 +8,6 @@ import attr
 import yarl
 from bs4 import BeautifulSoup
 import aiohttp
-from furl import furl
 import arrow
 from sqlalchemy import select, desc, text
 from sqlalchemy.orm import sessionmaker
@@ -261,7 +260,7 @@ class ScrapeUsers:
         @return a evolved FaSubmission object
         '''
 
-        url = furl(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_row.furaffinity_submission_id))
+        url = yarl.URL(constants.FURAFFINITY_URL_SUBMISSION.format(fa_submission.submission_row.furaffinity_submission_id))
 
         aiohttp_response_result = await utils.fetch_url(aiohttp_session, url)
 
