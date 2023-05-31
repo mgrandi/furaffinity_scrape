@@ -1,6 +1,8 @@
 import enum
 import re
 
+# used to pass in our own config path into alembic commands using `alembic -x key=value`
+ALEMBIC_CMD_X_ARGUMENT_NAME = "furaffinity_scrape_config"
 
 # colons are invalid characters on windows
 # so `arrow.utcnow().isoformat()` returns
