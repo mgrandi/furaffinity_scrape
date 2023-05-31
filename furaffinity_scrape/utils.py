@@ -269,6 +269,9 @@ def parse_config(stringArg):
     fa_ending_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_ENDING_SUBMISSION_ID}"
     fa_ending_id = _get_key_or_throw(conf_obj, fa_ending_id_key, HoconTypesEnum.INT)
 
+    fa_range_step_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_SUBMISSION_ID_RANGE_STEP}"
+    fa_range_step = _get_key_or_throw(conf_obj, fa_range_step_key, HoconTypesEnum.INT)
+
 
     # return final settings
     return model.Settings(
@@ -280,7 +283,8 @@ def parse_config(stringArg):
         rabbitmq_url=rabbitmq_url,
         rabbitmq_queue_name=rabbitmq_queue_name,
         starting_submission_id=fa_starting_id,
-        ending_submission_id=fa_ending_id)
+        ending_submission_id=fa_ending_id,
+        submission_id_range_step=fa_range_step)
 
 
 
@@ -512,6 +516,13 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
             filesystem_safe_date_str = date_str.replace(":", "_")
             format_dict = {constants.COMPRESSED_TIMED_ROTATING_FILE_HANDLER_ISO8601_REPLACEMENT: filesystem_safe_date_str}
             new_filename = new_filename.format_map(format_dict)
+
+        p = pathlib.Path(new_filename)
+
+        # create directory if it doesn't exist so that way app code doesn't have
+        # to worry about creating a 'log' folder if the config changes
+        if not p.parent.exists():
+            p.parent.mkdir(parents=True)
 
         super().__init__(
             new_filename,

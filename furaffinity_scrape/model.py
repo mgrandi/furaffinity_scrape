@@ -20,6 +20,7 @@ class Settings:
     rabbitmq_queue_name:str = attr.ib()
     starting_submission_id:int = attr.ib()
     ending_submission_id:int = attr.ib()
+    submission_id_range_step:int = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:

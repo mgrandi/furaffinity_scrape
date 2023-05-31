@@ -70,9 +70,33 @@ class PopulateRabbit:
             self.rabbitmq_channel = await self.rabbitmq_connection.channel(publisher_confirms=False)
 
 
-            logger.info("populating rabbitmq with submission ids `%s` to `%s`", self.config.starting_submission_id, self.config.ending_submission_id)
+            logger.info("populating rabbitmq with submission ids `%s` to `%s`",
+                self.config.starting_submission_id, self.config.ending_submission_id)
 
-            for iter_fa_submission_id in range(self.config.starting_submission_id, self.config.ending_submission_id + 1):
+            # create the range object depending on if we are going backwards or fowards
+            range_obj = None
+            total_count = 0
+            if self.config.submission_id_range_step == -1:
+                # going backwards
+                range_obj = range(
+                    self.config.starting_submission_id,
+                    self.config.ending_submission_id -1,
+                    self.config.submission_id_range_step)
+
+                # 10 to 1, 10 but end is exclusive so add 1
+                total_count = (self.config.starting_submission_id - self.config.ending_submission_id) + 1
+            else:
+                # going fowards
+                range_obj = range(
+                    self.config.starting_submission_id,
+                    self.config.ending_submission_id + 1,
+                    self.config.submission_id_range_step)
+
+                # 1 to 10, but end is exclusive so add 1
+                total_count = (self.config.ending_submission_id - self.config.starting_submission_id) + 1
+
+
+            for idx, iter_fa_submission_id in enumerate(range_obj, start=1):
 
                 if stop_event.is_set():
                     logger.info("stop event is set, breaking")
@@ -98,14 +122,14 @@ class PopulateRabbit:
 
                 if iter_fa_submission_id % 50000 == 0:
 
-                    logger.info("%s/%s done", iter_fa_submission_id, self.config.ending_submission_id)
+                    logger.info("%s/%s done", idx, total_count)
                     await asyncio.sleep(10)
 
 
                 # logger.info("sleeping `%s`", iter_fa_submission_id)
                 # await asyncio.sleep(10)
 
-            logger.info("%s/%s done", self.config.ending_submission_id, self.config.ending_submission_id)
+            logger.info("%s/%s done", idx, total_count)
 
             # await stop_event.wait()
 
