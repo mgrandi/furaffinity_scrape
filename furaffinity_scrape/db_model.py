@@ -88,6 +88,51 @@ class User(CustomDeclarativeBase):
     )
 
 
+class FAScrapeAttempt(CustomDeclarativeBase):
+
+    __tablename__ = "fa_scrape_attempt"
+
+    scrape_attempt_id = Column(Integer, nullable=False, autoincrement=True)
+
+    furaffinity_submission_id = Column(Integer, nullable=False)
+
+    date_visited = Column(ArrowType, nullable=False)
+
+    processed_status = Column(ChoiceType(model.ProcessedStatus, impl=Unicode()), nullable=False)
+
+    claimed_by = Column(Unicode, nullable=False)
+
+    error_string = Column(Unicode, nullable=True)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("scrape_attempt_id", name="PK-fa_scrape_attempt-scrape_attempt_id"),
+        Index("IX-fa_scrape_attempt-furaffinity_submission_id", "furaffinity_submission_id"),
+        Index("IX-fa_scrape_attempt-furaffinity_submission_id-processed_status", "furaffinity_submission_id", "processed_status"),
+    )
+
+
+class FAScrapeContent(CustomDeclarativeBase):
+    __tablename__ = "fa_scrape_content"
+
+    content_id = Column(Integer, nullable=False, autoincrement=True)
+
+    submission_id = Column(Integer,
+        ForeignKey("submission.submission_id",
+            name="FK-fa_scrape_content-submission_id-submission-submission_id"),
+        nullable=False)
+
+    content_length = Column(Integer, nullable=False)
+    content_sha512 = Column(Unicode, nullable=False)
+    content_binary = Column(LargeBinary, nullable=False)
+
+    __table_args__ = (
+        PrimaryKeyConstraint("content_id", name="PK-fa_scrape_content-content_id"),
+        Index("IX-fa_scrape_content-submission_id", "submission_id"),
+
+
+    )
+
+
 # class URLSVisited(CustomDeclarativeBase):
 #     __tablename__ = "urls_visited"
 #     # primary key column
