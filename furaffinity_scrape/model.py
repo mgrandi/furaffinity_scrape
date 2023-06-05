@@ -107,6 +107,7 @@ class SubmissionStatus(enum.Enum):
 class ProcessedStatus(enum.Enum):
     TODO = "todo"
     FINISHED = "finished"
+    ERROR = "error"
 
 class EncodingStatusEnum(enum.Enum):
     DECODED_OK = "decoded_ok"

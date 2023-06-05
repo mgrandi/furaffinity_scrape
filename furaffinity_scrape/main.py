@@ -8,6 +8,7 @@ import logging_tree
 
 from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers
+from furaffinity_scrape.modules.scrape_submissions import ScrapeSubmissions
 from furaffinity_scrape.modules.populate_rabbit import PopulateRabbit
 
 
@@ -47,6 +48,9 @@ class Main():
 
         # PopulateRabbit command
         PopulateRabbit.create_subparser_command(subparsers)
+
+        # ScrapeSubmissions command
+        ScrapeSubmissions.create_subparser_command(subparsers)
 
         root_logger = logging.getLogger()
 
