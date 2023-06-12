@@ -55,6 +55,8 @@ class ScrapeSubmissions:
         self.rabbitmq_queue = None
         self.identity_string = None
 
+        self.time_to_wait_for_additional_messages_at_close = 5
+
     async def run(self, parsed_args, stop_event):
 
 
@@ -126,6 +128,50 @@ class ScrapeSubmissions:
             raise e
 
 
+
+    def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
+
+        async def rabbitmq_message_received(msg: aio_pika.IncomingMessage) -> None:
+
+            message_alternate_representation = model.RabbitmqMessageInfo(delivery_tag=msg.delivery_tag, body_bytes=msg.body )
+            logger.debug("rabbitmq_message_received() called with message: `%s`", message_alternate_representation)
+
+            if self.stop_event.is_set():
+                # stop event is set, immediately nack the message
+                logger.info("nacking message `%s` because stop event is set", message_alternate_representation)
+                await msg.reject(requeue=True)
+                return
+
+            try:
+
+                submission_str = msg.body.decode("utf-8")
+                logger.debug("submission id as string: `%s`", submission_str)
+                submission_id = int(submission_str)
+
+                if not isinstance(submission_id, int):
+                    raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
+
+
+                #await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
+
+                logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
+                await asyncio.sleep(self.config.time_between_requests_seconds)
+
+                logger.info("acking message `%s`", message_alternate_representation)
+                await msg.ack(multiple=False)
+
+            except Exception as e:
+                # don't rethrow as i don't think it will bubble up to the right place anyway, set the stop event instead
+                logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message, setting stop event", e, message_alternate_representation)
+
+                # nack the message
+                await msg.reject(requeue=True)
+
+                self.stop_event.set()
+
+        return rabbitmq_message_received
+
+
     async def one_iteration(self, submission_id, aiohttp_session, sessionmaker):
 
         current_date = arrow.utcnow()
@@ -162,47 +208,6 @@ class ScrapeSubmissions:
 
                 # now get the webpage
                 pass
-
-    def return_rabbitmq_message_received_callback(self, aiohttp_session, sessionmaker):
-
-        async def rabbitmq_message_received(msg: aio_pika.IncomingMessage) -> None:
-
-            message_alternate_representation = model.RabbitmqMessageInfo(delivery_tag=msg.delivery_tag, body_bytes=msg.body )
-            logger.debug("rabbitmq_message_received() called with message: `%s`", message_alternate_representation)
-
-            if self.stop_event.is_set():
-                # stop event is set, immediately nack the message
-                logger.info("nacking message `%s` because stop event is set", message_alternate_representation)
-                await msg.reject(requeue=True)
-                return
-
-            try:
-
-                submission_str = msg.body.decode("utf-8")
-                logger.debug("submission id as string: `%s`", submission_str)
-                submission_id = int(submission_str)
-
-                if not isinstance(submission_id, int):
-                    raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
-
-                await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
-
-                logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
-                await asyncio.sleep(self.config.time_between_requests_seconds)
-
-                logger.info("acking message `%s`", message_alternate_representation)
-                await msg.ack(multiple=False)
-
-            except Exception as e:
-                # don't rethrow as i don't think it will bubble up to the right place anyway, set the stop event instead
-                logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message, setting stop event", e, message_alternate_representation)
-
-                # nack the message
-                await msg.reject(requeue=True)
-
-                self.stop_event.set()
-
-        return rabbitmq_message_received
 
     async def close_stuff(self):
 
