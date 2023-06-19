@@ -22,6 +22,7 @@ aio-pika = "^9.0.7"
 cython = "^0.29.34"
 aiohttp = {extras = ["speedups"], version = "^3.8.4"}
 alembic = "^1.11.1"
+aiofiles = "^23.1.0"
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.40.0"
