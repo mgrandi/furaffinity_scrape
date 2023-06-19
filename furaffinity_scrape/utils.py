@@ -292,7 +292,8 @@ def parse_config(stringArg):
             ending_submission_id=fa_ending_id,
             submission_id_range_step=fa_range_step,
             temp_folder=temp_folder,
-            wget_path=wget)
+            wget_path=wget,
+            cookie_path=temp_folder / constants.COOKIE_FILE_NAME)
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")

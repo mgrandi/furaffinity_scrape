@@ -21,6 +21,7 @@ from furaffinity_scrape import db_model
 from furaffinity_scrape import model
 from furaffinity_scrape import constants
 from furaffinity_scrape import html_utils
+from furaffinity_scrape import file_utils
 
 logger = logging.getLogger(__name__)
 
@@ -59,13 +60,19 @@ class ScrapeSubmissions:
 
     async def run(self, parsed_args, stop_event):
 
-
         self.identity_string = utils.get_identity_string()
         logger.info("Our identity string is `%s`", self.identity_string)
 
         self.config = parsed_args.config
         self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
         self.stop_event = stop_event
+
+        # write cookie file
+        file_utils.FileUtils.write_cookie_file(self.config)
+
+        # make sure the temp folder is created
+
+        self.config.temp_folder.mkdir(exist_ok=True)
 
         # create rabbitmq stuff
         self.rabbitmq_url = self.config.rabbitmq_url
@@ -152,7 +159,7 @@ class ScrapeSubmissions:
                     raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
 
 
-                #await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
+                await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
 
                 logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
                 await asyncio.sleep(self.config.time_between_requests_seconds)
@@ -172,42 +179,42 @@ class ScrapeSubmissions:
         return rabbitmq_message_received
 
 
+
+
+
     async def one_iteration(self, submission_id, aiohttp_session, sessionmaker):
 
         current_date = arrow.utcnow()
 
         current_submission_row = None
 
-        # TODO lock here
         async with sessionmaker() as sqla_session:
 
-            # claim the latest submission and commit it
-            # EDIT: now we are getting it from rabbitmq, but continue to use this to insert a submission record in the
-            # database in case it randomly dies or something and rabbitmq also loses the message
-            current_submission_row = await self.claim_next_submission(submission_id, sqla_session, current_date)
 
-            if not current_submission_row:
+            current_attempt = None
 
-                # if it was None, that means we have picked up a rabbit message for a submission that was started
-                # and already finished, just return here so we skip the submission
+            # start the attempt
+            async with sqla_session.begin():
 
-                return
+                logger.info("on submission `%s`", submission_id)
 
-        async with sessionmaker() as sqla_session:
+                current_attempt = db_model.FAScrapeAttempt(
+                    furaffinity_submission_id=submission_id,
+                    date_visited=arrow.utcnow(),
+                    processed_status=model.ProcessedStatus.TODO,
+                    claimed_by=self.identity_string)
 
+
+
+                sqla_session.add(current_attempt)
 
             async with sqla_session.begin():
 
-                current_fa_submission = model.FASubmission(
-                    submission_row=current_submission_row,
-                    raw_html_bytes=None,
-                    soup=None,
-                    did_have_decode_error=None)
-
-                logger.info("on submission `%s`", current_fa_submission)
-
-                # now get the webpage
+                # now get the submission
                 pass
+
+
+
 
     async def close_stuff(self):
 

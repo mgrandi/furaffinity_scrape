@@ -1,6 +1,9 @@
 import enum
 import re
 
+
+COOKIE_FILE_NAME = "cookies.txt"
+
 # used to pass in our own config path into alembic commands using `alembic -x key=value`
 ALEMBIC_CMD_X_ARGUMENT_NAME = "furaffinity_scrape_config"
 
