@@ -1,6 +1,7 @@
 from __future__ import annotations
 import typing
 import enum
+import pathlib
 
 import bs4
 from sqlalchemy.engine.url import URL
@@ -21,6 +22,8 @@ class Settings:
     starting_submission_id:int = attr.ib()
     ending_submission_id:int = attr.ib()
     submission_id_range_step:int = attr.ib()
+    temp_folder:pathlib.Path = attr.ib()
+    wget_path:pathlib.Path = attr.ib()
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class CookieKeyValue:

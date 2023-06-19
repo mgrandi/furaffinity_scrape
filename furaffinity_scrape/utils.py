@@ -221,72 +221,81 @@ def parse_config(stringArg):
 
     '''
 
+    try:
+        conf_obj = hocon_config_file_type(stringArg)
 
-    conf_obj = hocon_config_file_type(stringArg)
+        sleep_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_TIME_BETWEEN_REQS_SECS}"
+        sleep_time_seconds = _get_key_or_throw(conf_obj, sleep_key, HoconTypesEnum.INT)
 
-    sleep_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_TIME_BETWEEN_REQS_SECS}"
-    sleep_time_seconds = _get_key_or_throw(conf_obj, sleep_key, HoconTypesEnum.INT)
+        cookies_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_COOKIES_KEY}"
+        cookies_dict = _get_key_or_throw(conf_obj, cookies_key, HoconTypesEnum.CONFIG)
 
-    cookies_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_COOKIES_KEY}"
-    cookies_dict = _get_key_or_throw(conf_obj, cookies_key, HoconTypesEnum.CONFIG)
+        # get cookies
+        tmp_cookie_list = []
+        for cookie_key, cookie_value in cookies_dict.items():
 
-    # get cookies
-    tmp_cookie_list = []
-    for cookie_key, cookie_value in cookies_dict.items():
+            cookie = model.CookieKeyValue(key=cookie_key, value=cookie_value)
+            tmp_cookie_list.append(cookie)
 
-        cookie = model.CookieKeyValue(key=cookie_key, value=cookie_value)
-        tmp_cookie_list.append(cookie)
+        cookie_jar = model.CookieJar(cookies=tmp_cookie_list)
 
-    cookie_jar = model.CookieJar(cookies=tmp_cookie_list)
+        # get headers
+        headers_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_HEADERS_KEY}"
+        headers_dict = _get_key_or_throw(conf_obj, headers_key, HoconTypesEnum.CONFIG)
 
-    # get headers
-    headers_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_HEADERS_KEY}"
-    headers_dict = _get_key_or_throw(conf_obj, headers_key, HoconTypesEnum.CONFIG)
+        tmp_header_list = []
+        for header_key, header_value in headers_dict.items():
 
-    tmp_header_list = []
-    for header_key, header_value in headers_dict.items():
+            header = model.HeaderKeyValue(key=header_key, value=header_value)
+            tmp_header_list.append(header)
 
-        header = model.HeaderKeyValue(key=header_key, value=header_value)
-        tmp_header_list.append(header)
+        header_jar = model.HeaderJar(headers=tmp_header_list)
 
-    header_jar = model.HeaderJar(headers=tmp_header_list)
+        db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
+        sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
 
-    db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
-    sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
+        logging_dict_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_LOGGING_DICT_KEY}"
+        logging_dict = _get_key_or_throw(conf_obj, logging_dict_key, HoconTypesEnum.CONFIG)
 
-    logging_dict_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_LOGGING_DICT_KEY}"
-    logging_dict = _get_key_or_throw(conf_obj, logging_dict_key, HoconTypesEnum.CONFIG)
+        rabbitmq_url_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}"
+        rabbitmq_url = _get_rabbitmq_url_from_hocon_config(conf_obj[rabbitmq_url_key])
 
-    rabbitmq_url_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}"
-    rabbitmq_url = _get_rabbitmq_url_from_hocon_config(conf_obj[rabbitmq_url_key])
+        rabbitmq_queue_name_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}.{constants.HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME}"
+        rabbitmq_queue_name = _get_key_or_throw(conf_obj, rabbitmq_queue_name_key, HoconTypesEnum.STRING)
 
-    rabbitmq_queue_name_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RABBITMQ_GROUP}.{constants.HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME}"
-    rabbitmq_queue_name = _get_key_or_throw(conf_obj, rabbitmq_queue_name_key, HoconTypesEnum.STRING)
+        fa_starting_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_STARTING_SUBMISSION_ID}"
+        fa_starting_id = _get_key_or_throw(conf_obj, fa_starting_id_key, HoconTypesEnum.INT)
 
-    fa_starting_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_STARTING_SUBMISSION_ID}"
-    fa_starting_id = _get_key_or_throw(conf_obj, fa_starting_id_key, HoconTypesEnum.INT)
+        fa_ending_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_ENDING_SUBMISSION_ID}"
+        fa_ending_id = _get_key_or_throw(conf_obj, fa_ending_id_key, HoconTypesEnum.INT)
 
-    fa_ending_id_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_ENDING_SUBMISSION_ID}"
-    fa_ending_id = _get_key_or_throw(conf_obj, fa_ending_id_key, HoconTypesEnum.INT)
+        fa_range_step_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_SUBMISSION_ID_RANGE_STEP}"
+        fa_range_step = _get_key_or_throw(conf_obj, fa_range_step_key, HoconTypesEnum.INT)
 
-    fa_range_step_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_SUBMISSION_ID_RANGE_STEP}"
-    fa_range_step = _get_key_or_throw(conf_obj, fa_range_step_key, HoconTypesEnum.INT)
+        temp_folder_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_TEMP_FOLDER}"
+        temp_folder = pathlib.Path(_get_key_or_throw(conf_obj, temp_folder_key, HoconTypesEnum.STRING))
 
-
-    # return final settings
-    return model.Settings(
-        time_between_requests_seconds=sleep_time_seconds,
-        cookie_jar=cookie_jar,
-        header_jar=header_jar,
-        sqla_url=sqla_url,
-        logging_config=logging_dict,
-        rabbitmq_url=rabbitmq_url,
-        rabbitmq_queue_name=rabbitmq_queue_name,
-        starting_submission_id=fa_starting_id,
-        ending_submission_id=fa_ending_id,
-        submission_id_range_step=fa_range_step)
+        wget_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_WGET_PATH}"
+        wget = pathlib.Path(_get_key_or_throw(conf_obj, wget_key, HoconTypesEnum.STRING))
 
 
+        # return final settings
+        return model.Settings(
+            time_between_requests_seconds=sleep_time_seconds,
+            cookie_jar=cookie_jar,
+            header_jar=header_jar,
+            sqla_url=sqla_url,
+            logging_config=logging_dict,
+            rabbitmq_url=rabbitmq_url,
+            rabbitmq_queue_name=rabbitmq_queue_name,
+            starting_submission_id=fa_starting_id,
+            ending_submission_id=fa_ending_id,
+            submission_id_range_step=fa_range_step,
+            temp_folder=temp_folder,
+            wget_path=wget)
+
+    except Exception as e:
+        raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")
 
 
 def hocon_config_file_type(stringArg):
@@ -296,7 +305,6 @@ def hocon_config_file_type(stringArg):
     @param stringArg - the argument given to us by argparse
     @return a dict like object containing the configuration or raises ArgumentTypeError
     '''
-
     resolved_path = pathlib.Path(stringArg).expanduser().resolve()
     if not resolved_path.exists:
         raise argparse.ArgumentTypeError("The path {} doesn't exist!".format(resolved_path))

@@ -34,6 +34,8 @@ HOCON_CONFIG_LOGGING_DICT_KEY = "logging_dict"
 HOCON_CONFIG_STARTING_SUBMISSION_ID = "starting_submission_id"
 HOCON_CONFIG_ENDING_SUBMISSION_ID = "ending_submission_id"
 HOCON_CONFIG_SUBMISSION_ID_RANGE_STEP = "submission_id_range_step"
+HOCON_CONFIG_TEMP_FOLDER = "temp_folder"
+HOCON_CONFIG_WGET_PATH = "wget_path"
 
 HOCON_CONFIG_DATABASE_GROUP = "database"
 HOCON_CONFIG_KEY_DATABASE_DRIVER = "driver_name"
