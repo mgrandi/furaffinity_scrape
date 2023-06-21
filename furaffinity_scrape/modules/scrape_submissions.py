@@ -67,12 +67,13 @@ class ScrapeSubmissions:
         self.sqla_engine = utils.setup_sqlalchemy_engine(self.config.sqla_url)
         self.stop_event = stop_event
 
-        # write cookie file
-        file_utils.FileUtils.write_cookie_file(self.config)
+
 
         # make sure the temp folder is created
-
         self.config.temp_folder.mkdir(exist_ok=True)
+
+        # write cookie file
+        file_utils.FileUtils.write_cookie_file(self.config)
 
         # create rabbitmq stuff
         self.rabbitmq_url = self.config.rabbitmq_url
@@ -208,10 +209,13 @@ class ScrapeSubmissions:
 
                 sqla_session.add(current_attempt)
 
+            # now start a new session and then do the work
             async with sqla_session.begin():
 
-                # now get the submission
-                pass
+                await file_utils.FileUtils.download_submission_using_wget(
+                    fa_scrape_attempt=current_attempt,
+                    config=self.config)
+
 
 
 

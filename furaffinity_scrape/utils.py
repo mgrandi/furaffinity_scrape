@@ -581,4 +581,52 @@ class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
             # delete the file after we compressed it
             iter_file.unlink()
 
+async def run_command_and_wait(
+    binary_to_run:pathlib.Path,
+    argument_list:list[str],
+    timeout:int,
+    acceptable_return_codes:list[int],
+    cwd=None) -> str:
+
+    logger.debug("running `%s` process with arguments `%s` and cwd `%s`",
+        binary_to_run.name,
+        argument_list, cwd)
+
+    process_obj:asyncio.subprocess.Process = await asyncio.create_subprocess_exec(
+        binary_to_run,
+        *argument_list,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        cwd=cwd)
+
+    while True:
+        try:
+            logger.debug("Waiting for `%s` process to exit...", binary_to_run.name)
+
+            await asyncio.wait_for(
+                # wait_for will cancel the task if it times out
+                # so wrap the `asyncio.subprocess.Process` object
+                # in `shield()` so it doesn't get cancelled
+                asyncio.shield(process_obj.wait()),
+                timeout=timeout)
+
+            break
+
+        except Exception as e:
+            logger.debug("command `%s` timed out, trying again", binary_to_run.name)
+
+    stdout_result = await process_obj.stdout.read()
+    stdout_output = stdout_result.decode("utf-8")
+    logger.debug("the `%s` process exited: `%s`", binary_to_run.name, process_obj)
+
+    if process_obj.returncode not in acceptable_return_codes:
+
+        logger.error("command `%s` with arguments `%s` 's return code of `%s` wasn't in the list of " +
+                "acceptable return codes `%s`, stdout: `%s`",
+                binary_to_run, argument_list, process_obj.returncode, acceptable_return_codes, stdout_output)
+        raise Exception(f"Command `{binary_to_run}` with arguments `{argument_list}` 's return code " +
+            f"`{process_obj.returncode}` was not in the list of acceptable return codes: `{acceptable_return_codes}`")
+
+    return stdout_output
+
 
