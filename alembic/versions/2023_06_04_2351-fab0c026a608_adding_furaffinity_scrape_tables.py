@@ -44,28 +44,30 @@ def upgrade() -> None:
 
     op.create_table('fa_scrape_content',
         sa.Column('content_id', sa.Integer(), autoincrement=True, nullable=False),
-        sa.Column('submission_id', sa.Integer(), nullable=False),
+        sa.Column('attempt_id', sa.Integer(), nullable=False),
         sa.Column('content_length', sa.Integer(), nullable=False),
         sa.Column('content_sha512', sa.Unicode(), nullable=False),
         sa.Column('content_binary', sa.LargeBinary(), nullable=False),
         sa.ForeignKeyConstraint(
-            ['submission_id'],
-            ['submission.submission_id'],
-            name='FK-fa_scrape_content-submission_id-submission-submission_id'),
+            ['attempt_id'],
+            ['fa_scrape_attempt.scrape_attempt_id'],
+            name='FK-fa_scrape_content-a_id-fa_scrape_attempt-scrape_attempt_id'),
         sa.PrimaryKeyConstraint(
             'content_id',
             name='PK-fa_scrape_content-content_id')
     )
     with op.batch_alter_table('fa_scrape_content', schema=None) as batch_op:
-        batch_op.create_index('IX-fa_scrape_content-submission_id', ['submission_id'], unique=False)
+        batch_op.create_index('IX-fa_scrape_content-attempt_id', ['attempt_id'], unique=False)
 
 
 
 def downgrade() -> None:
+
     with op.batch_alter_table('fa_scrape_content', schema=None) as batch_op:
-        batch_op.drop_index('IX-fa_scrape_content-submission_id')
+        batch_op.drop_index('IX-fa_scrape_content-attempt_id')
 
     op.drop_table('fa_scrape_content')
+
     with op.batch_alter_table('fa_scrape_attempt', schema=None) as batch_op:
         batch_op.drop_index('IX-fa_scrape_attempt-furaffinity_submission_id-processed_status')
         batch_op.drop_index('IX-fa_scrape_attempt-furaffinity_submission_id')

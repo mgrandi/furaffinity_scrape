@@ -116,18 +116,20 @@ class FAScrapeContent(CustomDeclarativeBase):
 
     content_id = Column(Integer, nullable=False, autoincrement=True)
 
-    submission_id = Column(Integer,
-        ForeignKey("submission.submission_id",
-            name="FK-fa_scrape_content-submission_id-submission-submission_id"),
+    attempt_id = Column(Integer,
+        ForeignKey("fa_scrape_attempt.scrape_attempt_id",
+            name="FK-fa_scrape_content-a_id-fa_scrape_attempt-scrape_attempt_id"),
         nullable=False)
 
     content_length = Column(Integer, nullable=False)
     content_sha512 = Column(Unicode, nullable=False)
     content_binary = Column(LargeBinary, nullable=False)
 
+    attempt = relationship("FAScrapeAttempt")
+
     __table_args__ = (
         PrimaryKeyConstraint("content_id", name="PK-fa_scrape_content-content_id"),
-        Index("IX-fa_scrape_content-submission_id", "submission_id"),
+        Index("IX-fa_scrape_content-attempt_id", "attempt_id"),
 
 
     )
