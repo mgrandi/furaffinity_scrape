@@ -116,6 +116,8 @@ class PopulateRabbit:
                     message=message_to_publish,
                     routing_key=self.config.rabbitmq_queue_name)
 
+                #logger.info("id: `%s`", iter_fa_submission_id)
+
 
                 # if not publish_result:
                 #     raise Exception(f"error publishing message for submission id `{iter_fa_submission_id}`")
@@ -129,7 +131,7 @@ class PopulateRabbit:
                 # logger.info("sleeping `%s`", iter_fa_submission_id)
                 # await asyncio.sleep(10)
 
-            logger.info("%s/%s done", idx, total_count)
+            logger.info("%s/%s done", total_count, total_count)
 
             # await stop_event.wait()
 
