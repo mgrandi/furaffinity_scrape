@@ -296,7 +296,8 @@ def parse_config(stringArg):
             temp_folder=temp_folder,
             wget_path=wget,
             cookie_path=temp_folder / constants.COOKIE_FILE_NAME,
-            sevenzip_path=sevenzip)
+            sevenzip_path=sevenzip,
+            git_describe_string=get_git_describe_output(abbreviate_hash_length=40))
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")

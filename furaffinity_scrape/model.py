@@ -26,6 +26,7 @@ class Settings:
     wget_path:pathlib.Path = attr.ib()
     cookie_path:pathlib.Path = attr.ib()
     sevenzip_path:pathlib.Path = attr.ib()
+    git_describe_string:str = attr.ib()
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)

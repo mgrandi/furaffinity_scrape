@@ -212,10 +212,20 @@ class ScrapeSubmissions:
             # now start a new session and then do the work
             async with sqla_session.begin():
 
-                await file_utils.FileUtils.download_submission_using_wget(
+                fa_scrape_content = await file_utils.FileUtils.download_submission_using_wget(
                     fa_scrape_attempt=current_attempt,
                     config=self.config)
 
+
+                # now add the content object to the sqlalchemy session
+
+                sqla_session.add(fa_scrape_content)
+
+                # modify the attempt object to say we are done
+                current_attempt.processed_status = model.ProcessedStatus.FINISHED
+                sqla_session.add(current_attempt)
+
+                # now we are done with this iteration
 
 
 
