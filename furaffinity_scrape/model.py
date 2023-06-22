@@ -25,6 +25,7 @@ class Settings:
     temp_folder:pathlib.Path = attr.ib()
     wget_path:pathlib.Path = attr.ib()
     cookie_path:pathlib.Path = attr.ib()
+    sevenzip_path:pathlib.Path = attr.ib()
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)

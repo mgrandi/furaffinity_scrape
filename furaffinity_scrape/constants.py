@@ -39,6 +39,7 @@ HOCON_CONFIG_ENDING_SUBMISSION_ID = "ending_submission_id"
 HOCON_CONFIG_SUBMISSION_ID_RANGE_STEP = "submission_id_range_step"
 HOCON_CONFIG_TEMP_FOLDER = "temp_folder"
 HOCON_CONFIG_WGET_PATH = "wget_path"
+HOCON_CONFIG_SEVENZIP_PATH = "7zip_path"
 
 HOCON_CONFIG_DATABASE_GROUP = "database"
 HOCON_CONFIG_KEY_DATABASE_DRIVER = "driver_name"
@@ -62,6 +63,10 @@ HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME = "queue_name"
 
 RABBITMQ_JSON_SUBMISSION_ID_KEY = "submission_id"
 
+SEVENZIP_EXPECTED_RETURN_CODES = [0]
+
+# see https://bitmath.readthedocs.io/en/latest/instances.html#format
+BITMATH_FORMATTING_STRING = "{value:.3f} {unit}"
 
 FETCH_URL_MAX_ATTEMPTS = 5
 FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS = 5

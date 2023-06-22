@@ -278,6 +278,8 @@ def parse_config(stringArg):
         wget_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_WGET_PATH}"
         wget = pathlib.Path(_get_key_or_throw(conf_obj, wget_key, HoconTypesEnum.STRING))
 
+        sevenzip_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_SEVENZIP_PATH}"
+        sevenzip = pathlib.Path(_get_key_or_throw(conf_obj, sevenzip_key, HoconTypesEnum.STRING))
 
         # return final settings
         return model.Settings(
@@ -293,7 +295,8 @@ def parse_config(stringArg):
             submission_id_range_step=fa_range_step,
             temp_folder=temp_folder,
             wget_path=wget,
-            cookie_path=temp_folder / constants.COOKIE_FILE_NAME)
+            cookie_path=temp_folder / constants.COOKIE_FILE_NAME,
+            sevenzip_path=sevenzip)
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")
