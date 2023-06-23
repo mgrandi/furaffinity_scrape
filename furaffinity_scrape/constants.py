@@ -65,9 +65,7 @@ RABBITMQ_JSON_SUBMISSION_ID_KEY = "submission_id"
 
 SEVENZIP_EXPECTED_RETURN_CODES = [0]
 
-WGET_EXPECTED_RETURN_CODES = [0,8]
-
-ONE_ITERATION_WAIT_TIME_SECONDS = 1
+WGET_EXPECTED_RETURN_CODES = [0,1, 8]
 
 # see https://bitmath.readthedocs.io/en/latest/instances.html#format
 BITMATH_FORMATTING_STRING = "{value:.3f} {unit}"
