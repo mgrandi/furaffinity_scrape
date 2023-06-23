@@ -65,8 +65,15 @@ RABBITMQ_JSON_SUBMISSION_ID_KEY = "submission_id"
 
 SEVENZIP_EXPECTED_RETURN_CODES = [0]
 
+WGET_EXPECTED_RETURN_CODES = [0,8]
+
+ONE_ITERATION_WAIT_TIME_SECONDS = 1
+
 # see https://bitmath.readthedocs.io/en/latest/instances.html#format
 BITMATH_FORMATTING_STRING = "{value:.3f} {unit}"
+
+WGET_ACCEPT_REGEX = "//[a-z]{1}\\.furaffinity\\.net/.*|fonts\\.googleapis\\.com/.*|www\\.furaffinity\\.net/themes/.*|fonts\\.gstatic\\.com/*"
+
 
 FETCH_URL_MAX_ATTEMPTS = 5
 FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS = 5

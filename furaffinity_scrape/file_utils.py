@@ -43,21 +43,20 @@ class FileUtils:
         submission_id = fa_scrape_attempt.furaffinity_submission_id
         current_date = arrow.utcnow().isoformat()
         cookie_path = config.temp_folder / "cookies.txt"
-        temp_file = temp_dir / "wget.tmp"
         warc_tempdir = temp_dir / "warc_temp_folder"
+
+
         arg_list = [
             config.wget_path,
             f"--load-cookies={cookie_path}",
             "-e",
             "robots=off",
             "--user-agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/116.0",
             "--span-hosts",
             "--page-requisites",
             "--no-check-certificate",
             "--no-warc-compression",
-            "--output-document",
-            f"{temp_file}",
             "--warc-tempdir",
             f"{warc_tempdir}",
             # "--warc-cdx", # this causes wpull to error out?
@@ -71,6 +70,11 @@ class FileUtils:
             f"script_version: {config.git_describe_string}",
             "--warc-file",
             warc_file_without_ext,
+            "--recursive",
+            "--level",
+            "1",
+            "--accept-regex",
+            constants.WGET_ACCEPT_REGEX,
             f"https://www.furaffinity.net/view/{submission_id}/"
         ]
 
@@ -101,14 +105,13 @@ class FileUtils:
 
             logger.debug("wget args: `%s`", wget_args)
 
-
             try:
 
                 stdout_output = await utils.run_command_and_wait(
                     binary_to_run=config.wget_path,
                     argument_list=wget_args,
                     timeout=5,
-                    acceptable_return_codes=[0,1],
+                    acceptable_return_codes=constants.WGET_EXPECTED_RETURN_CODES,
                     cwd=None)
 
             except Exception as e:

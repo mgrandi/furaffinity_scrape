@@ -162,7 +162,7 @@ class ScrapeSubmissions:
 
                 await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
 
-                logger.debug("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
+                logger.info("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
                 await asyncio.sleep(self.config.time_between_requests_seconds)
 
                 logger.info("acking message `%s`", message_alternate_representation)
@@ -178,8 +178,6 @@ class ScrapeSubmissions:
                 self.stop_event.set()
 
         return rabbitmq_message_received
-
-
 
 
 
@@ -225,8 +223,7 @@ class ScrapeSubmissions:
                 current_attempt.processed_status = model.ProcessedStatus.FINISHED
                 sqla_session.add(current_attempt)
 
-                # now we are done with this iteration
-
+                logger.info("Committing...")
 
 
 
