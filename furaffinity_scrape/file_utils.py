@@ -93,6 +93,9 @@ class FileUtils:
 
             temp_folder = pathlib.Path(d)
 
+            wget_tempdir = temp_folder / "wget_tempdir"
+            wget_tempdir.mkdir()
+
             warc_file_path_with_ext = temp_folder / f"fascrape_submission_{fa_scrape_attempt.furaffinity_submission_id}.warc"
 
             # run wget
@@ -112,7 +115,7 @@ class FileUtils:
                     argument_list=wget_args,
                     timeout=5,
                     acceptable_return_codes=constants.WGET_EXPECTED_RETURN_CODES,
-                    cwd=None)
+                    cwd=wget_tempdir)
 
             except Exception as e:
                 logger.error("Failed to run wget")
