@@ -51,3 +51,25 @@ this will download a submission:
 
 Eventually, we will have a sizeable list of users, after which we can iterate over them to download their user pages
 to get even more users, through user page comments, watch lists, profile information.
+
+
+
+## building pex
+
+```plaintext
+
+poetry build
+
+pip3 freeze > freeze.txt
+
+# edit furaffinity_scrape line to not be a git url TODO FIX
+
+pex -r freeze.txt -o dist/furaffinity_scrape-0.2.0.pex -f dist/ -c fascrape_cli
+
+```
+
+## stopping service
+
+```plaintext
+ansible fascrape -i inventory/ --ask-vault-pass -m raw -a "sudo systemctl stop furaffinity_scrape.service"  --verbose
+```
