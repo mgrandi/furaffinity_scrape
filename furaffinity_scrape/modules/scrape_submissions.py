@@ -150,6 +150,8 @@ class ScrapeSubmissions:
                 await msg.reject(requeue=True)
                 return
 
+            submission_id = None
+
             try:
 
                 submission_str = msg.body.decode("utf-8")
@@ -159,23 +161,32 @@ class ScrapeSubmissions:
                 if not isinstance(submission_id, int):
                     raise Exception(f"submission id wasn't an integer? rabbitmq message was: `{message_alternate_representation}`, submission id was `{submission_id}`" )
 
+            except Exception as e:
+
+                logger.exception("rabbitmq_message_received: caught exception, setting stop event")
+                self.stop_event.set()
+
+            try:
 
                 await self.one_iteration(submission_id, aiohttp_session, self.async_sessionmaker)
 
                 logger.info("sleeping for `%s` second(s)", self.config.time_between_requests_seconds)
                 await asyncio.sleep(self.config.time_between_requests_seconds)
 
+                # make sure we ack AFTER sleeping, because once we ack it we will get another
+                # message immediately even if we are sleeping
                 logger.info("acking message `%s`", message_alternate_representation)
                 await msg.ack(multiple=False)
 
             except Exception as e:
                 # don't rethrow as i don't think it will bubble up to the right place anyway, set the stop event instead
-                logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message, setting stop event", e, message_alternate_representation)
+                logger.exception("Exception `%s` caught in rabbitmq_message_received processing message `%s`, nacking message", e, message_alternate_representation)
 
                 # nack the message
                 await msg.reject(requeue=True)
 
-                self.stop_event.set()
+                await asyncio.sleep(constants.TIME_TO_SLEEP_SECONDS_ON_EXCEPTION)
+
 
         return rabbitmq_message_received
 
@@ -203,6 +214,7 @@ class ScrapeSubmissions:
                     processed_status=model.ProcessedStatus.TODO,
                     claimed_by=self.identity_string)
 
+                logger.debug("created FAScrapeAttempt and adding it to the session: `%s`", current_attempt)
 
 
                 sqla_session.add(current_attempt)
