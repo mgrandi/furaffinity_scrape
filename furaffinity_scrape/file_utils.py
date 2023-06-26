@@ -57,6 +57,10 @@ class FileUtils:
             "--page-requisites",
             "--no-check-certificate",
             "--no-warc-compression",
+            "--tries",
+            "5",
+            "--waitretry",
+            "5",
             "--warc-tempdir",
             f"{warc_tempdir}",
             # "--warc-cdx", # this causes wpull to error out?
