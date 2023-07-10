@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "furaffinity_scrape"
-version = "0.2.1"
+version = "0.2.2"
 description = "scrape utilites for furaffinity.net"
 authors = ["Mark Grandi <markgrandi@gmail.com>"]
 license = "MIT"
