@@ -48,6 +48,7 @@ class FileUtils:
 
         arg_list = [
             config.wget_path,
+            "--no-verbose",
             f"--load-cookies={cookie_path}",
             "-e",
             "robots=off",
