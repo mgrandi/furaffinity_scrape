@@ -174,6 +174,7 @@ def register_ctrl_c_signal_handler(func_to_run):
         func_to_run()
 
     signal.signal(signal.SIGINT, inner_ctrl_c_signal_handler)
+    signal.signal(signal.SIGTERM, inner_ctrl_c_signal_handler)
 
 class ArrowLoggingFormatter(logging.Formatter):
     ''' logging.Formatter subclass that uses arrow, that formats the timestamp
