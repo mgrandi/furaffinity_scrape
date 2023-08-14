@@ -71,5 +71,17 @@ pex -r freeze.txt -o dist/furaffinity_scrape-0.2.0.pex -f dist/ -c fascrape_cli
 ## stopping service
 
 ```plaintext
-ansible fascrape -i inventory/ --ask-vault-pass -m raw -a "sudo systemctl stop furaffinity_scrape.service"  --verbose
+ansible fascrape -i inventory/ --ask-vault-pass --ask-become-pass --become -m raw -a "sudo systemctl stop furaffinity_scrape.service"  --verbose
+```
+
+## deploying new code version
+
+```plaintext
+
+ansible-playbook -i inventory/ --ask-vault-pass --ask-become-pass install_furaffinity_scrape.yaml
+
+# or if you want to limit it only digital ocean hosts and not local
+
+ansible-playbook -i inventory/ -l fascrape --ask-vault-pass --ask-become-pass install_furaffinity_scrape.yaml
+
 ```
