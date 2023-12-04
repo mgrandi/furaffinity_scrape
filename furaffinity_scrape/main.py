@@ -10,6 +10,8 @@ from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers
 from furaffinity_scrape.modules.scrape_submissions import ScrapeSubmissions
 from furaffinity_scrape.modules.populate_rabbit import PopulateRabbit
+from furaffinity_scrape.modules.extract_files_from_db import ExtractFilesFromDb
+
 
 
 def start():
@@ -51,6 +53,8 @@ class Main():
 
         # ScrapeSubmissions command
         ScrapeSubmissions.create_subparser_command(subparsers)
+
+        ExtractFilesFromDb.create_subparser_command(subparsers)
 
         root_logger = logging.getLogger()
 

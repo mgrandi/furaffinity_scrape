@@ -123,9 +123,14 @@ class FAScrapeContent(CustomDeclarativeBase):
 
     content_length = Column(Integer, nullable=False)
     content_sha512 = Column(Unicode, nullable=False)
-    content_binary = Column(LargeBinary, nullable=False)
+    content_binary = Column(LargeBinary, nullable=True)
 
     attempt = relationship("FAScrapeAttempt")
+    # for sqlalchemy_repr, don't log the content_binary column
+    # see https://github.com/manicmaniac/sqlalchemy-repr/blob/master/sqlalchemy_repr.py
+    # needs to be A LIST, if you do set("lol") then it will be a set of {"l", "o"}, not the string value
+    # not sure if i need to do this for `relationship` columns but lets be safe
+    __repr_blacklist__ = ["content_binary"]
 
     __table_args__ = (
         PrimaryKeyConstraint("content_id", name="PK-fa_scrape_content-content_id"),
