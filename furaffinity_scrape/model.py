@@ -8,7 +8,6 @@ from sqlalchemy.engine.url import URL
 import attr
 import yarl
 
-
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class Settings:
 
@@ -27,6 +26,16 @@ class Settings:
     cookie_path:pathlib.Path = attr.ib()
     sevenzip_path:pathlib.Path = attr.ib()
     git_describe_string:str = attr.ib()
+    rsync_settings:RsyncSettings = attr.ib()
+
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class RsyncSettings:
+    rsync_binary_path:pathlib.Path = attr.ib()
+    ssh_host:str = attr.ib()
+    ssh_port:int = attr.ib()
+    ssh_username:str = attr.ib()
+    file_path_prefix:str = attr.ib()
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)

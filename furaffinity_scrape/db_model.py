@@ -1,7 +1,9 @@
 import logging
+import pathlib
 
 from furaffinity_scrape import model
 
+import attr
 from sqlalchemy import Column, Index, Integer, Unicode, LargeBinary, ForeignKey, UniqueConstraint, PrimaryKeyConstraint
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
@@ -138,6 +140,12 @@ class FAScrapeContent(CustomDeclarativeBase):
 
 
     )
+
+@attr.s(auto_attribs=True, frozen=True, kw_only=True)
+class WgetDownloadResult:
+
+    fa_scrape_content:FAScrapeContent = attr.ib()
+    compressed_warc_file_path:pathlib.Path = attr.ib()
 
 
 # class URLSVisited(CustomDeclarativeBase):

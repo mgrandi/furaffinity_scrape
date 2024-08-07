@@ -14,6 +14,7 @@ from furaffinity_scrape import model
 from furaffinity_scrape import db_model
 from furaffinity_scrape import constants
 from furaffinity_scrape import utils
+from furaffinity_scrape import rsync_utils
 
 logger = logging.getLogger(__name__)
 
@@ -88,7 +89,7 @@ class FileUtils:
     @staticmethod
     async def download_submission_using_wget(
         fa_scrape_attempt:db_model.FAScrapeAttempt,
-        config:model.Settings) -> db_model.FAScrapeContent:
+        config:model.Settings) -> db_model.WgetDownloadResult:
 
         async with aiofiles.tempfile.TemporaryDirectory(
             dir=config.temp_folder,
@@ -101,7 +102,7 @@ class FileUtils:
             wget_tempdir = temp_folder / "wget_tempdir"
             wget_tempdir.mkdir()
 
-            warc_file_path_with_ext = temp_folder / f"fascrape_submission_{fa_scrape_attempt.furaffinity_submission_id}.warc"
+            warc_file_path_with_ext = temp_folder / f"fascrape_content_sid-{fa_scrape_attempt.furaffinity_submission_id}_aid-{fa_scrape_attempt.scrape_attempt_id}.warc"
 
             # run wget
 
@@ -130,18 +131,31 @@ class FileUtils:
 
             # now load the file into memory
 
-            fa_scrape_content = await FileUtils.compress_warc_file(
+            wget_dl_result = await FileUtils.compress_warc_file(
                 warc_file_to_compress=warc_file_path_with_ext,
                 settings=config)
 
-            fa_scrape_content.attempt = fa_scrape_attempt
+            # rsync the file here
+            rsync_arguments = rsync_utils.RsyncUtils.get_rsync_command_line(
+                config=config,
+                wget_dl_result=wget_dl_result)
 
-            return fa_scrape_content
+            rsync_stdout = await utils.run_command_and_wait(
+                binary_to_run=config.rsync_settings.rsync_binary_path,
+                argument_list=rsync_arguments,
+                timeout=5,
+                acceptable_return_codes=constants.RSYNC_EXPECTED_RETURN_CODES,
+                cwd=wget_tempdir)
+
+            # return the result
+            wget_dl_result.fa_scrape_content.attempt = fa_scrape_attempt
+
+            return wget_dl_result
 
     @staticmethod
     async def compress_warc_file(
         warc_file_to_compress:pathlib.Path,
-        settings:model.Settings) -> db_model.FAScrapeContent:
+        settings:model.Settings) -> db_model.WgetDownloadResult:
 
         original_file_stat = await aiofiles.os.stat(warc_file_to_compress)
         original_file_size = original_file_stat.st_size
@@ -199,12 +213,18 @@ class FileUtils:
         logger.info("Compressed `%s` (`%s` -> `%s`)",
             warc_file_to_compress.name, original_file_size_string, compressed_file_size_string)
 
+        # explicitly set content_bytes to be None as we are no longer
+        # storing the file in the database
         scrape_content = db_model.FAScrapeContent(
             content_length=content_length,
             content_sha512=hasher.hexdigest(),
-            content_binary=content_bytes)
+            content_binary=None)
 
-        return scrape_content
+        wget_dl_result = db_model.WgetDownloadResult(
+            fa_scrape_content=scrape_content,
+            compressed_warc_file_path=compressed_warc_filepath)
+
+        return wget_dl_result
 
 
 
