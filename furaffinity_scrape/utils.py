@@ -376,7 +376,7 @@ def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
     user = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_USERNAME, HoconTypesEnum.STRING)
     password = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PASSWORD, HoconTypesEnum.STRING)
     host = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_HOST, HoconTypesEnum.STRING)
-    port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PORT, HoconTypesEnum.STRING)
+    port = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PORT, HoconTypesEnum.INT)
     path = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_PATH, HoconTypesEnum.STRING)
     query = _get_key_or_throw(config, constants.HOCON_CONFIG_KEY_RABBITMQ_QUERY, HoconTypesEnum.CONFIG)
 
