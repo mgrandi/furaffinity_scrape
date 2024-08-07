@@ -252,6 +252,7 @@ def parse_config(stringArg):
 
         header_jar = model.HeaderJar(headers=tmp_header_list)
 
+        # FIXME: update all of these where i use array indexing to instead use _get_key_or_throw
         db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
         sqla_url = get_sqlalchemy_url_from_hocon_config(conf_obj[db_config_key])
 
@@ -282,6 +283,12 @@ def parse_config(stringArg):
         sevenzip_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_SEVENZIP_PATH}"
         sevenzip = pathlib.Path(_get_key_or_throw(conf_obj, sevenzip_key, HoconTypesEnum.STRING))
 
+
+        rsync_group_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_KEY_RSYNC_GROUP}"
+        rsync_group_config_obj = _get_key_or_throw(conf_obj, rsync_group_key, HoconTypesEnum.CONFIG)
+        rsync_settings = get_rsync_settings_from_hocon_config(rsync_group_config_obj)
+
+
         # return final settings
         return model.Settings(
             time_between_requests_seconds=sleep_time_seconds,
@@ -298,7 +305,8 @@ def parse_config(stringArg):
             wget_path=wget,
             cookie_path=temp_folder / constants.COOKIE_FILE_NAME,
             sevenzip_path=sevenzip,
-            git_describe_string=get_git_describe_output(abbreviate_hash_length=40))
+            git_describe_string=get_git_describe_output(abbreviate_hash_length=40),
+            rsync_settings=rsync_settings)
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")
@@ -389,6 +397,42 @@ def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
         path=path,
         query=query,
         encoded=False)
+
+def get_rsync_settings_from_hocon_config(config:pyhocon.ConfigTree) -> model.RsyncSettings:
+
+    binpath = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_BINARY_PATH,
+        HoconTypesEnum.STRING)
+
+    port = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_SSH_PORT,
+        HoconTypesEnum.INT)
+
+    user = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_SSH_USERNAME,
+        HoconTypesEnum.STRING)
+
+    host = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_SSH_HOST,
+        HoconTypesEnum.STRING)
+
+    path_prefix = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_FILE_PATH_PREFIX,
+        HoconTypesEnum.STRING)
+
+    rsync_settings = model.RsyncSettings(
+        rsync_binary_path=pathlib.Path(binpath),
+        ssh_host=host,
+        ssh_port=port,
+        ssh_username=user,
+        file_path_prefix=path_prefix)
+
+    return rsync_settings
 
 def get_sqlalchemy_url_from_hocon_config(config:pyhocon.ConfigTree) -> URL:
 
@@ -623,6 +667,7 @@ async def run_command_and_wait(
     stdout_result = await process_obj.stdout.read()
     stdout_output = stdout_result.decode("utf-8")
     logger.debug("the `%s` process exited: `%s`", binary_to_run.name, process_obj)
+    logger.debug("stdout: `%s`", stdout_output)
 
     if process_obj.returncode not in acceptable_return_codes:
 
