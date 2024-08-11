@@ -47,7 +47,6 @@ class FileUtils:
         cookie_path = config.temp_folder / "cookies.txt"
         warc_tempdir = temp_dir / "warc_temp_folder"
 
-
         arg_list = [
             config.wget_path,
             "--no-verbose",
@@ -68,9 +67,9 @@ class FileUtils:
             f"{warc_tempdir}",
             # "--warc-cdx", # this causes wpull to error out?
             "--warc-header",
-            "operator: Mark Grandi",
+            f"operator: {config.operator_name}",
             "--warc-header",
-            f"furaffinity_scrape_attempt_id: {attempt_id}"
+            f"furaffinity_scrape_attempt_id: {attempt_id}",
             "--warc-header",
             f"date: {current_date}",
             "--warc-header",

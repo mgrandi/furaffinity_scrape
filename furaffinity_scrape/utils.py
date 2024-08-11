@@ -225,6 +225,9 @@ def parse_config(stringArg):
     try:
         conf_obj = hocon_config_file_type(stringArg)
 
+        operator_name_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_OPERATOR_NAME}"
+        operator_name = _get_key_or_throw(conf_obj, operator_name_key, HoconTypesEnum.STRING)
+
         sleep_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_TIME_BETWEEN_REQS_SECS}"
         sleep_time_seconds = _get_key_or_throw(conf_obj, sleep_key, HoconTypesEnum.INT)
 
@@ -306,7 +309,8 @@ def parse_config(stringArg):
             cookie_path=temp_folder / constants.COOKIE_FILE_NAME,
             sevenzip_path=sevenzip,
             git_describe_string=get_git_describe_output(abbreviate_hash_length=40),
-            rsync_settings=rsync_settings)
+            rsync_settings=rsync_settings,
+            operator_name=operator_name)
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")
