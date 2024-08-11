@@ -28,6 +28,7 @@ class Settings:
     git_describe_string:str = attr.ib()
     rsync_settings:RsyncSettings = attr.ib()
     operator_name:str = attr.ib()
+    user_agent:str = attr.ib()
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
