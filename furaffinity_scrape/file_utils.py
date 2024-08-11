@@ -41,6 +41,7 @@ class FileUtils:
         temp_dir:pathlib.Path,
         warc_file_without_ext:pathlib.Path) -> list[str]:
 
+        attempt_id = fa_scrape_attempt.scrape_attempt_id
         submission_id = fa_scrape_attempt.furaffinity_submission_id
         current_date = arrow.utcnow().isoformat()
         cookie_path = config.temp_folder / "cookies.txt"
@@ -68,6 +69,8 @@ class FileUtils:
             # "--warc-cdx", # this causes wpull to error out?
             "--warc-header",
             "operator: Mark Grandi",
+            "--warc-header",
+            f"furaffinity_scrape_attempt_id: {attempt_id}"
             "--warc-header",
             f"date: {current_date}",
             "--warc-header",
