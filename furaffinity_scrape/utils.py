@@ -425,10 +425,16 @@ def get_rsync_settings_from_hocon_config(config:pyhocon.ConfigTree) -> model.Rsy
         constants.HOCON_CONFIG_KEY_RSYNC_FILE_PATH_PREFIX,
         HoconTypesEnum.STRING)
 
+    ssh_key = _get_key_or_throw(
+        config,
+        constants.HOCON_CONFIG_KEY_RSYNC_SSH_KEY,
+        HoconTypesEnum.STRING)
+
     rsync_settings = model.RsyncSettings(
         rsync_binary_path=pathlib.Path(binpath),
         ssh_host=host,
         ssh_port=port,
+        ssh_key=ssh_key,
         ssh_username=user,
         file_path_prefix=path_prefix)
 

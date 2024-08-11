@@ -35,10 +35,14 @@ class RsyncUtils:
 
         remote_full_path_to_copy_to = pathlib.PurePosixPath(f"{rsync_settings.file_path_prefix}") / remote_sha_folder_name
 
+        rsh_line = f"/usr/bin/ssh -p {rsync_settings.ssh_port}"
+        if rsync_settings.ssh_key is not None:
+            rsh_line = rsh_line + f" -i {rsync_settings.ssh_key}"
+
         args = [
             rsync_settings.rsync_binary_path,
             "--rsh",
-            f'''/usr/bin/ssh -p {rsync_settings.ssh_port}''',
+            rsh_line,
             # pass itemize-changes twice explicitly
             # so we get unchanged items listed
             "--itemize-changes",

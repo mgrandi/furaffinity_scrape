@@ -34,6 +34,7 @@ class RsyncSettings:
     rsync_binary_path:pathlib.Path = attr.ib()
     ssh_host:str = attr.ib()
     ssh_port:int = attr.ib()
+    ssh_key:str|None = attr.ib()
     ssh_username:str = attr.ib()
     file_path_prefix:str = attr.ib()
 

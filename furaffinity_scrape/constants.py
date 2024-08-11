@@ -66,6 +66,7 @@ HOCON_CONFIG_KEY_RSYNC_BINARY_PATH = "rsync_binary_path"
 HOCON_CONFIG_KEY_RSYNC_SSH_PORT = "rsync_ssh_port"
 HOCON_CONFIG_KEY_RSYNC_SSH_USERNAME = "rsync_ssh_username"
 HOCON_CONFIG_KEY_RSYNC_SSH_HOST = "rsync_ssh_host"
+HOCON_CONFIG_KEY_RSYNC_SSH_KEY = "rsync_ssh_key"
 HOCON_CONFIG_KEY_RSYNC_FILE_PATH_PREFIX = "rsync_file_path_prefix"
 
 HOCON_CONFIG_KEY_RABBITMQ_QUEUE_NAME = "queue_name"
