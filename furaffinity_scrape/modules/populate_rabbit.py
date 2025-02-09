@@ -3,6 +3,7 @@ import json
 import asyncio
 
 import aio_pika
+from aio_pika.abc import DeliveryMode
 
 from furaffinity_scrape import utils
 
@@ -111,7 +112,9 @@ class PopulateRabbit:
 
                 # see https://aiorabbit.readthedocs.io/en/latest/api.html#aiorabbit.client.Client.publish
 
-                message_to_publish = aio_pika.Message(body=message_body.encode("utf-8"))
+                message_to_publish = aio_pika.Message(
+                    body=message_body.encode("utf-8"),
+                    delivery_mode=DeliveryMode.PERSISTENT )
                 publish_result = await self.rabbitmq_channel.default_exchange.publish(
                     message=message_to_publish,
                     routing_key=self.config.rabbitmq_queue_name)
