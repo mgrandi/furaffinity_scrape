@@ -1635,17 +1635,6 @@ timezone = ["python-dateutil"]
 url = ["furl (>=0.4.1)"]
 
 [[package]]
-name = "thespian"
-version = "4.0.0"
-description = "Python Actor concurrency library"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "thespian-4.0.0.zip", hash = "sha256:f7692b5a09170a61fb41ad10fb4718d8a2b02a30de2582c0f08d03b529a84688"},
-]
-
-[[package]]
 name = "types-python-dateutil"
 version = "2.9.0.20241206"
 description = "Typing stubs for python-dateutil"
@@ -1815,4 +1804,4 @@ propcache = ">=0.2.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "20155b956e2ae56704a89c05c12a92041cfbeee3b3aa688d7338ae2e3e393e66"
+content-hash = "e1d92e079736dd3d9617c6984ac1b8eecb685609ed65002ec0cee4687a359839"
