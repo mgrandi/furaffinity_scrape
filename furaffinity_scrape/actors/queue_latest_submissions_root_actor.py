@@ -13,7 +13,9 @@ from actorio import Actor, Message, DataMessage, ask, EndMainLoop
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
 from furaffinity_scrape import model
-from furaffinity_scrape.actors.rabbitmq_actor import RabbitmqActor, RabbitmqSetup
+from furaffinity_scrape.actors.sqlalchemy_actor import SqlalchemyActor, SetupSqlaActor
+from furaffinity_scrape.actors.queue_latest_submissions_scheduler_actor import QueueLatestSubmissionsSchedulerActor, SchedulerSetup
+from furaffinity_scrape.actors.rabbitmq_publish_actor import RabbitmqPublishActor, RabbitmqSetup
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
 
 logger = logging.getLogger(__name__)
@@ -43,12 +45,20 @@ class QueueLatestSubmissionsRootActor(Actor):
 
     async def setup(self):
 
-        logger.info("setting up")
+        logger.debug("setting up root actor")
 
         # create rabbit actor
-        self.rabbit_actor = await self.register_child(RabbitmqActor(self.config))
-
+        self.rabbit_actor = await self.register_child(RabbitmqPublishActor(self.config))
         await self.rabbit_actor.tell(DataMessage(data=RabbitmqSetup(), sender=self))
+
+        # create sqlalchemy actor
+        self.sqla_actor = await self.register_child(SqlalchemyActor(self.config))
+        await self.sqla_actor.tell(DataMessage(data=SetupSqlaActor(), sender=self))
+
+        # create scheduler actor
+        self.scheduler_actor = await self.register_child(
+            QueueLatestSubmissionsSchedulerActor(self.config, self.sqla_actor))
+        await self.scheduler_actor.tell(DataMessage(data=SchedulerSetup(), sender=self))
 
 
     async def shutdown(self):
@@ -56,6 +66,14 @@ class QueueLatestSubmissionsRootActor(Actor):
         logger.info("stopping rabbit actor...")
         result = await self.rabbit_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("rabbit actor stopped with result: `%s`", result.data)
+
+        logger.info("stopping sqlalchemy actor")
+        result = await self.sqla_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("sqlalchemy actor stopped with result: `%s`", result.data)
+
+        logger.info("stopping scheduler actor")
+        result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("scheduler actor stopped with result: `%s`", result.data)
 
     async def handle_message(self, message: Message):
 
