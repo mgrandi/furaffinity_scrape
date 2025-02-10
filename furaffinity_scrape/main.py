@@ -3,8 +3,8 @@ import logging.config
 import argparse
 import sys
 import asyncio
-import thespian.actors
 import logging_tree
+import actorio
 
 from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers
@@ -66,12 +66,7 @@ class Main():
 
             parsed_args = parser.parse_args()
 
-            # manually set the actor system on the object after we do parsing so
-            # we get access to the config file and the logging stuff to set up logging
-            parsed_args.actor_system = thespian.actors.ActorSystem(logDefs=parsed_args.config.logging_config)
-
-            # set up logging stuff, other logging is set up with the actor system that will eventually call
-            # dictConfig
+            logging.config.dictConfig(parsed_args.config.logging_config)
             logging.captureWarnings(True) # capture warnings with the logging infrastructure
 
             root_logger.info("starting")

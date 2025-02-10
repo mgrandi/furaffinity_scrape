@@ -12,14 +12,15 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
+from actorio import Actor, Message, DataMessage, EndMainLoop, Reference
+
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
 from furaffinity_scrape import model
 from furaffinity_scrape.actors.queue_latest_submissions_root_actor \
-    import QueueLatestSubmissionsRootActor,QueueLatestSubmissionsRootActorProps
+    import QueueLatestSubmissionsRootActor, QueueLatestSubmissionsRootActorSetup
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
-import thespian
-import thespian.actors
+
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,6 @@ class QueueLatestSubmissions:
     def __init__(self):
 
         self.config:model.Settings = None
-        self.actor_system:thespian.actors.ActorSystem = None
         self.stop_event:asyncio.Event = None
         self.root_actor = None
 
@@ -60,22 +60,26 @@ class QueueLatestSubmissions:
         logger.debug("running")
         self.config = parsed_args.config
         self.stop_event = stop_event
-        self.actor_system = parsed_args.actor_system
-
 
         logger.info("Creating root actor")
 
-        self.root_actor = self.actor_system.createActor(QueueLatestSubmissionsRootActor, globalName="RootActor")
-        self.actor_system.tell(self.root_actor, QueueLatestSubmissionsRootActorProps(settings=self.config))
+        async with QueueLatestSubmissionsRootActor(self.config) as root_actor:
 
-        # wait for exit
+            logger.info("created actor `%s`, Requesting setup", self.root_actor)
+            me = Reference()
+            await root_actor.tell(DataMessage(data=QueueLatestSubmissionsRootActorSetup(), sender=me))
 
-        logger.info("Waiting for stop event: %s", stop_event)
-        await stop_event.wait()
+            # wait for exit
+
+            logger.info("Waiting for stop event: %s", stop_event)
+            await stop_event.wait()
 
 
 
-        logger.info("Stop event signaled")
+            logger.info("Stop event signaled")
+            me = Reference()
+            result = await root_actor.ask(DataMessage(data=PleaseStop(), sender=me))
+            logger.info("root actor stopped with result `%s`", result.data)
 
-        # send actor stop
-        self.actor_system.tell(self.root_actor, thespian.actors.ActorExitRequest())
+
+            logger.info("`%s` main loop finished, exiting", QueueLatestSubmissions)

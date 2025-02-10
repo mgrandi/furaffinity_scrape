@@ -7,49 +7,75 @@ from sqlalchemy import select, desc, text, func
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
-from thespian.initmsgs import initializing_messages
 import attr
-import thespian
-import thespian.actors
+from actorio import Actor, Message, DataMessage, ask, EndMainLoop
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
 from furaffinity_scrape import model
+from furaffinity_scrape.actors.rabbitmq_actor import RabbitmqActor, RabbitmqSetup
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
 
 logger = logging.getLogger(__name__)
 
 
-@attr.s(auto_attribs=True, frozen=True, kw_only=True)
-class QueueLatestSubmissionsRootActorProps:
+@attr.define(frozen=True)
+class QueueLatestSubmissionsRootActorSetup():
+    pass
 
-    settings:model.Settings = attr.ib()
-
-
-@initializing_messages(
-    [("actor_settings", QueueLatestSubmissionsRootActorProps, False)], initdone="init_completed", init_passthru=False)
-class QueueLatestSubmissionsRootActor(thespian.actors.Actor):
-
-    # we don't have props here so use the initalization messages pattern
-    # https://thespianpy.com/doc/using#outline-container-hH-d4e592db-8bab-45bd-9643-e952510bd7dc
+class QueueLatestSubmissionsRootActor(Actor):
 
 
-    def init_completed(self):
+    def __init__(self, config):
 
-        self.config = self.actor_settings.settings
+        super().__init__(self)
+        self.config = config
+
+        self.rabbit_actor = None
+        self.sqla_actor = None
 
 
-        logger.info("init completed")
+    # def __init__(self, config):
+
+    #     super()
+
+    #     self.config = config
+
+    async def setup(self):
+
+        logger.info("setting up")
+
+        # create rabbit actor
+        self.rabbit_actor = await self.register_child(RabbitmqActor(self.config))
+
+        await self.rabbit_actor.tell(DataMessage(data=RabbitmqSetup(), sender=self))
 
 
-        logger.info("Creating rabbit actor")
+    async def shutdown(self):
 
-    def receiveMessage(self, message, sender):
+        logger.info("stopping rabbit actor...")
+        result = await self.rabbit_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("rabbit actor stopped with result: `%s`", result.data)
 
-        match type(message):
+    async def handle_message(self, message: Message):
 
-            case thespian.actors.ActorExitRequest:
-                logger.info("Asked to exit")
+
+        # match statements are weird man
+        # https://stackoverflow.com/questions/67525257/capture-makes-remaining-patterns-unreachable/67525259#67525259
+
+        d = message.data
+        if d.__class__ == QueueLatestSubmissionsRootActorSetup:
+            await self.setup()
+
+        elif d.__class__ == PleaseStop:
+            logger.info("Asked to exit")
+
+            await self.shutdown()
+
+            logger.info("stopping self")
+
+            await message.sender.tell(DataMessage(data="ok", sender=self))
+            raise EndMainLoop()
 
 
 
