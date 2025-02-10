@@ -40,7 +40,9 @@ class QueueLatestSubmissionsRootActor(thespian.actors.Actor):
 
 
         logger.info("init completed")
-        #self.rabbit_actor = self.createActor()
+
+
+        logger.info("Creating rabbit actor")
 
     def receiveMessage(self, message, sender):
 
