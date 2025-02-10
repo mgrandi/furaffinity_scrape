@@ -29,6 +29,12 @@ class Settings:
     rsync_settings:RsyncSettings = attr.ib()
     operator_name:str = attr.ib()
     user_agent:str = attr.ib()
+    queue_latest_submissions_settings:QueueLatestSubmissionsSettings = attr.ib()
+
+
+@attr.define(frozen=True)
+class QueueLatestSubmissionsSettings:
+    cron_string:str
 
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)

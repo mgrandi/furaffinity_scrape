@@ -21,7 +21,6 @@ from sqlalchemy.engine.url import URL
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.event import listen
 
-
 from furaffinity_scrape import constants
 from furaffinity_scrape.constants import HoconTypesEnum
 
@@ -297,6 +296,10 @@ def parse_config(stringArg):
         rsync_settings = get_rsync_settings_from_hocon_config(rsync_group_config_obj)
 
 
+        queue_latest_submission_group_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_QUEUE_LATEST_SUBMISSIONS_GROUP_KEY}"
+        queue_latest_submissions_group_obj = _get_key_or_throw(conf_obj, queue_latest_submission_group_key, HoconTypesEnum.CONFIG)
+        queue_latest_submission_settings = get_queue_latest_submission_settings(queue_latest_submissions_group_obj)
+
         # return final settings
         return model.Settings(
             time_between_requests_seconds=sleep_time_seconds,
@@ -316,7 +319,8 @@ def parse_config(stringArg):
             git_describe_string=get_git_describe_output(abbreviate_hash_length=40),
             rsync_settings=rsync_settings,
             operator_name=operator_name,
-            user_agent=user_agent)
+            user_agent=user_agent,
+            queue_latest_submissions_settings=queue_latest_submission_settings)
 
     except Exception as e:
         raise argparse.ArgumentTypeError(f"Failed to parse the config: `{e}`")
@@ -407,6 +411,18 @@ def _get_rabbitmq_url_from_hocon_config(config:pyhocon.ConfigTree) -> yarl.URL:
         path=path,
         query=query,
         encoded=False)
+
+def get_queue_latest_submission_settings(config:pyhocon.ConfigTree) -> model.QueueLatestSubmissionsSettings:
+
+    _cronexp:str = _get_key_or_throw(
+        config,
+        constants.HOCON_CRON_TRIGGER_CRON_EXPRESSION_KEY,
+        HoconTypesEnum.STRING)
+
+
+    return model.QueueLatestSubmissionsSettings(
+        cron_string=_cronexp)
+
 
 def get_rsync_settings_from_hocon_config(config:pyhocon.ConfigTree) -> model.RsyncSettings:
 
