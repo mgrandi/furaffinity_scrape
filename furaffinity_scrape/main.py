@@ -3,7 +3,7 @@ import logging.config
 import argparse
 import sys
 import asyncio
-
+import thespian.actors
 import logging_tree
 
 from furaffinity_scrape import utils
@@ -11,6 +11,7 @@ from furaffinity_scrape.modules.scrape_users import ScrapeUsers
 from furaffinity_scrape.modules.scrape_submissions import ScrapeSubmissions
 from furaffinity_scrape.modules.populate_rabbit import PopulateRabbit
 from furaffinity_scrape.modules.extract_files_from_db import ExtractFilesFromDb
+from furaffinity_scrape.modules.queue_latest_submissions import QueueLatestSubmissions
 
 
 
@@ -56,16 +57,22 @@ class Main():
 
         ExtractFilesFromDb.create_subparser_command(subparsers)
 
+        QueueLatestSubmissions.create_subparser_command(subparsers)
+
         root_logger = logging.getLogger()
 
         try:
 
-            # set up logging stuff
-            logging.captureWarnings(True) # capture warnings with the logging infrastructure
 
             parsed_args = parser.parse_args()
 
-            logging.config.dictConfig(parsed_args.config.logging_config)
+            # manually set the actor system on the object after we do parsing so
+            # we get access to the config file and the logging stuff to set up logging
+            parsed_args.actor_system = thespian.actors.ActorSystem(logDefs=parsed_args.config.logging_config)
+
+            # set up logging stuff, other logging is set up with the actor system that will eventually call
+            # dictConfig
+            logging.captureWarnings(True) # capture warnings with the logging infrastructure
 
             root_logger.info("starting")
 
@@ -74,14 +81,16 @@ class Main():
 
             # register Ctrl+C/D/whatever signal
             def _please_stop_loop_func():
-                root_logger.info("setting stop event")
-                self.stop_event.set()
+                root_logger.info("setting stop event: %s", self.stop_event)
+
+                # this is complex now because it wasn't working before
+                # see https://stackoverflow.com/questions/48836285/python-asyncio-event-wait-not-responding-to-event-set
+                asyncio.get_running_loop().call_soon_threadsafe(self.stop_event.set)
 
             utils.register_ctrl_c_signal_handler(_please_stop_loop_func)
 
             # run the function associated with each sub command
             if "func_to_run" in parsed_args:
-
                 await parsed_args.func_to_run(parsed_args, self.stop_event)
 
                 # await to let aiohttp close its connection

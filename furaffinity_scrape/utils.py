@@ -560,6 +560,15 @@ def compress_and_hash_text_data(binary_data:bytes) -> model.CompressAndHashResul
 
     return result
 
+
+class IsActorLogFilter(logging.Filter):
+    def filter(self, logrecord):
+        return 'actorAddress' in logrecord.__dict__
+class IsNotActorLogFilter(logging.Filter):
+    def filter(self, logrecord):
+        return 'actorAddress' not in logrecord.__dict__
+
+
 class CompressedTimedRotatingFileHandler(TimedRotatingFileHandler):
     ''' class that compressed a file after a certain time period
     when it rolls over
