@@ -10,6 +10,7 @@ from sqlalchemy.dialects.postgresql import insert
 import attr
 from actorio import Actor, Message, DataMessage, ask, EndMainLoop
 import dateutil.tz
+import yarl
 
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
@@ -21,31 +22,42 @@ from furaffinity_scrape import db_model
 from furaffinity_scrape import model
 from furaffinity_scrape.actors.sqlalchemy_actor import GetLatestFuraffinitySubmissionInDatabase
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
+from furaffinity_scrape.actors.http_actor import DownloadUrlResult, DownloadUrlRequest
+
 
 logger = logging.getLogger(__name__)
 
 
 @attr.define(frozen=True)
-class SchedulerSetup():
+class SchedulerSetup:
     pass
 
 class QueueLatestSubmissionsSchedulerActor(Actor):
 
     def __init__(self ,
         config:model.Settings,
-        sqla_actor:Actor):
+        sqla_actor:Actor,
+        http_actor:Actor):
 
         super().__init__(self)
 
         self.config = config
+
+        # sqlalchemy actor
         self.sqla_actor:Actor = sqla_actor
+        # http actor
+        self.http_actor:Actor = http_actor
+
+        # apscheduler items
         self.cron_trigger = None
         self.scheduler = None
         self.job_store = None
         self.executor = None
         self.scheduled_job = None
-        self.loop = None
         self.job_id = "scheduled_job"
+
+        # loop for the apscheduler trigger call
+        self.loop = None
 
 
     async def setup(self):
@@ -54,20 +66,22 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
 
         self.loop = asyncio.get_running_loop()
 
+        # set up apscheduler items
         self.cron_trigger = CronTrigger.from_crontab(
             self.config.queue_latest_submissions_settings.cron_string,
             timezone=dateutil.tz.UTC)
-
         self.scheduler = AsyncIOScheduler()
         self.executor = AsyncIOExecutor()
         self.scheduler.add_executor(self.executor)
         self.job_store = MemoryJobStore()
 
+        # start the apscheduler scheduler
         self.scheduler.start()
 
         # add the job after starting the scheduler
-
-
+        # we need to schedule it using a task on the loop
+        # variable we saved because APScheduler doesn't have asyncio
+        # support for running coroutines natively
         self.scheduled_job =  self.scheduler.add_job(
             lambda: self.loop.create_task(self.scheduled_func()),
             trigger=self.cron_trigger,
@@ -96,6 +110,14 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
                 sender=self) )
 
         logger.debug("highest furaffinity submission is: `%s`", highest_id.data)
+
+        # query the furaffinity homepage for the highest submission
+        download_result:DataMessage = await self.http_actor.ask(
+            DataMessage(
+                data=DownloadUrlRequest(yarl.URL("https://furaffinity.net")),
+                sender=self))
+
+        logger.debug("downloaded homepage result is `%s`", download_result.data)
 
 
     async def handle_message(self, message: Message):

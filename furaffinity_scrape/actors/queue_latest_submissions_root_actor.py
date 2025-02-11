@@ -17,12 +17,13 @@ from furaffinity_scrape.actors.sqlalchemy_actor import SqlalchemyActor, SetupSql
 from furaffinity_scrape.actors.queue_latest_submissions_scheduler_actor import QueueLatestSubmissionsSchedulerActor, SchedulerSetup
 from furaffinity_scrape.actors.rabbitmq_publish_actor import RabbitmqPublishActor, RabbitmqSetup
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
+from furaffinity_scrape.actors.http_actor import HttpActor
 
 logger = logging.getLogger(__name__)
 
 
 @attr.define(frozen=True)
-class QueueLatestSubmissionsRootActorSetup():
+class QueueLatestSubmissionsRootActorSetup :
     pass
 
 class QueueLatestSubmissionsRootActor(Actor):
@@ -35,7 +36,7 @@ class QueueLatestSubmissionsRootActor(Actor):
 
         self.rabbit_actor = None
         self.sqla_actor = None
-
+        self.http_actor = None
 
     # def __init__(self, config):
 
@@ -55,9 +56,13 @@ class QueueLatestSubmissionsRootActor(Actor):
         self.sqla_actor = await self.register_child(SqlalchemyActor(self.config))
         await self.sqla_actor.tell(DataMessage(data=SetupSqlaActor(), sender=self))
 
+        # create http actor
+        self.http_actor = await self.register_child(HttpActor(self.config))
+        # no setup method needed
+
         # create scheduler actor
         self.scheduler_actor = await self.register_child(
-            QueueLatestSubmissionsSchedulerActor(self.config, self.sqla_actor))
+            QueueLatestSubmissionsSchedulerActor(self.config, self.sqla_actor, self.http_actor))
         await self.scheduler_actor.tell(DataMessage(data=SchedulerSetup(), sender=self))
 
 
@@ -74,6 +79,10 @@ class QueueLatestSubmissionsRootActor(Actor):
         logger.info("stopping scheduler actor")
         result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("scheduler actor stopped with result: `%s`", result.data)
+
+        logger.info("stopping http actor")
+        result_http = await self.http_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("http actor stopped with result `%s`", result.data)
 
     async def handle_message(self, message: Message):
 
