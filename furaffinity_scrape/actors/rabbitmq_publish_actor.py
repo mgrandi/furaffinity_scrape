@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 @attr.define(frozen=True)
-class RabbitmqSetup():
+class RabbitmqSetup:
     pass
 
 
