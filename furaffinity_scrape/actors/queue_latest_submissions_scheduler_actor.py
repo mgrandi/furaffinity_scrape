@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import re
 
+import bs4
 import aio_pika
 import arrow
 from sqlalchemy import select, desc, text, func
@@ -20,6 +22,7 @@ from apscheduler.executors.asyncio import AsyncIOExecutor
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model
 from furaffinity_scrape import model
+from furaffinity_scrape import constants
 from furaffinity_scrape.actors.sqlalchemy_actor import GetLatestFuraffinitySubmissionInDatabase
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
 from furaffinity_scrape.actors.http_actor import DownloadUrlResult, DownloadUrlRequest
@@ -58,6 +61,8 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
 
         # loop for the apscheduler trigger call
         self.loop = None
+
+        self.submission_href_regex = re.compile(constants.FURAFFINITY_SUBMISSION_HREF_ID_REGEX)
 
 
     async def setup(self):
@@ -98,6 +103,45 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
         self.executor.shutdown()
 
 
+    def get_latest_submission_id_from_soup(self, soup:bs4.BeautifulSoup) -> int|None:
+        '''
+        we have submisisons, get the latest one. So the latest submisisons are actually
+        sorted by Art, Writing, Music, and Crafts, but it is easier to search for the latest
+        art entry and even if we miss the 'actual' latest one (because it is Music/writing/crafts),
+        we will pick it up next run
+        '''
+
+        submissions_a_tag_list = soup.select("#gallery-frontpage-submissions figure a[href]")
+
+        if len(submissions_a_tag_list) == 0:
+            logger.error("could not find any submissions in the beautiful soup object")
+            return None
+
+
+        latest_submission_a_tag = submissions_a_tag_list[0]
+        latest_submission_href = latest_submission_a_tag["href"]
+        logger.debug("latest submission href: `%s`", latest_submission_href)
+
+        latest_submission_id_match:re.Match|None = self.submission_href_regex.search(latest_submission_href)
+        if not latest_submission_id_match:
+            logger.error("got None back after using regex `%s` to search for the id in `%s`",
+                self.submission_href_regex, latest_submission_href)
+            return None
+
+        latest_submission_groupdict:dict = latest_submission_id_match.groupdict()
+        if constants.FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP not in latest_submission_groupdict.keys():
+            logger.error("got back a match `%s` but the expected group of `%s` was not inside? groupdict keys were `%s`",
+                latest_submission_id_match,
+                constants.FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP,
+                latest_submission_groupdict.keys())
+            return None
+
+        # finally get the id oh my word
+        latest_submission_id = latest_submission_groupdict[constants.FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP]
+
+        logger.info("latest submission ID is: `%s`", latest_submission_id)
+
+        return latest_submission_id
 
     async def scheduled_func(self):
 
@@ -118,6 +162,13 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
                 sender=self))
 
         logger.debug("downloaded homepage result is `%s`", download_result.data)
+
+
+        # get the latest submisison
+        soup:bs4.BeautifulSoup = download_result.data.result_html
+
+        latest_id:int = self.get_latest_submission_id_from_soup(soup)
+
 
 
     async def handle_message(self, message: Message):

@@ -24,6 +24,12 @@ class RabbitmqSetup:
     pass
 
 
+@attr.define(frozen=True)
+class PublishRangeOfMessages:
+    start_submission_number:int
+    end_submission_number:int
+
+
 class RabbitmqPublishActor(Actor):
 
 

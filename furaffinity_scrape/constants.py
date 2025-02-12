@@ -91,6 +91,9 @@ BITMATH_FORMATTING_STRING = "{value:.3f} {unit}"
 
 WGET_ACCEPT_REGEX = "//[a-z]{1}\\.furaffinity\\.net/.*|fonts\\.googleapis\\.com/.*|www\\.furaffinity\\.net/themes/.*|fonts\\.gstatic\\.com/*"
 
+FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP = "id"
+FURAFFINITY_SUBMISSION_HREF_ID_REGEX = f"/view/(?P<{FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP}>[0-9]+)/"
+
 
 FETCH_URL_MAX_ATTEMPTS = 5
 FETCH_URL_TIME_TO_SLEEP_BETWEEN_ATTEMPTS_SECONDS = 5
