@@ -29,6 +29,12 @@ class PublishRangeOfMessages:
     start_submission_number:int
     end_submission_number:int
 
+@attr.define(frozen=True)
+class PublishRangeOfMessagesResult:
+    maybe_exception:Exception|None
+    was_successful:bool
+    publish_obj:PublishRangeOfMessages
+
 
 class RabbitmqPublishActor(Actor):
 
@@ -47,6 +53,14 @@ class RabbitmqPublishActor(Actor):
 
         self.prefetch_count:int = 1
 
+
+    async def handle_publish_range_of_messages(self, publish_range_obj:PublishRangeOfMessages) -> PublishRangeOfMessagesResult:
+
+
+        return PublishRangeOfMessagesResult(
+            maybe_exception=None,
+            was_successful=True,
+            publish_obj=publish_range_obj)
 
     async def connect_to_rabbit(self):
 
@@ -95,6 +109,9 @@ class RabbitmqPublishActor(Actor):
         if d.__class__ == RabbitmqSetup:
             await self.connect_to_rabbit()
 
+        elif d.__class__ == PublishRangeOfMessages:
+            result = await self.handle_publish_range_of_messages(d)
+            await message.sender.tell(DataMessage(data=result, sender=self))
 
         elif d.__class__ == PleaseStop:
 

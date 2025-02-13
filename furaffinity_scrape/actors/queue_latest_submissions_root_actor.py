@@ -62,7 +62,7 @@ class QueueLatestSubmissionsRootActor(Actor):
 
         # create scheduler actor
         self.scheduler_actor = await self.register_child(
-            QueueLatestSubmissionsSchedulerActor(self.config, self.sqla_actor, self.http_actor))
+            QueueLatestSubmissionsSchedulerActor(self.config, self.sqla_actor, self.http_actor, self.rabbit_actor))
         await self.scheduler_actor.tell(DataMessage(data=SchedulerSetup(), sender=self))
 
 
@@ -76,13 +76,15 @@ class QueueLatestSubmissionsRootActor(Actor):
         result = await self.sqla_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("sqlalchemy actor stopped with result: `%s`", result.data)
 
-        logger.info("stopping scheduler actor")
-        result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
-        logger.info("scheduler actor stopped with result: `%s`", result.data)
 
         logger.info("stopping http actor")
         result_http = await self.http_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("http actor stopped with result `%s`", result.data)
+
+        logger.info("stopping scheduler actor")
+        result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("scheduler actor stopped with result: `%s`", result.data)
+
 
     async def handle_message(self, message: Message):
 

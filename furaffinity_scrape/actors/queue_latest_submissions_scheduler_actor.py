@@ -26,6 +26,7 @@ from furaffinity_scrape import constants
 from furaffinity_scrape.actors.sqlalchemy_actor import GetLatestFuraffinitySubmissionInDatabase
 from furaffinity_scrape.actors.common_actor_messages import PleaseStop
 from furaffinity_scrape.actors.http_actor import DownloadUrlResult, DownloadUrlRequest
+from furaffinity_scrape.actors.rabbitmq_publish_actor import PublishRangeOfMessages
 
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,8 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
     def __init__(self ,
         config:model.Settings,
         sqla_actor:Actor,
-        http_actor:Actor):
+        http_actor:Actor,
+        rabbit_actor:Actor):
 
         super().__init__(self)
 
@@ -50,6 +52,8 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
         self.sqla_actor:Actor = sqla_actor
         # http actor
         self.http_actor:Actor = http_actor
+
+        self.rabbit_actor:Actor = rabbit_actor
 
         # apscheduler items
         self.cron_trigger = None
@@ -102,6 +106,8 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
         self.scheduler.shutdown()
         self.executor.shutdown()
 
+        # the actors we have a reference to will be shut down elsewhere
+
 
     def get_latest_submission_id_from_soup(self, soup:bs4.BeautifulSoup) -> int|None:
         '''
@@ -148,12 +154,13 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
         logger.debug("scheduled function triggered to fetch latest furaffinity submission")
 
         # send message to the sqlalchemy actor
-        highest_id:DataMessage = await self.sqla_actor.ask(
+        latest_in_db_result_msg:DataMessage = await self.sqla_actor.ask(
             DataMessage(
                 data=GetLatestFuraffinitySubmissionInDatabase(),
                 sender=self) )
+        latest_result_in_db:GetLatestFuraffinitySubmissionInDatabaseResult = latest_in_db_result_msg.data
 
-        logger.debug("highest furaffinity submission is: `%s`", highest_id.data)
+        logger.debug("highest furaffinity submission is: `%s`", latest_result_in_db)
 
         # query the furaffinity homepage for the highest submission
         download_result:DataMessage = await self.http_actor.ask(
@@ -169,6 +176,12 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
 
         latest_id:int = self.get_latest_submission_id_from_soup(soup)
 
+        # send the rabbitmq publish actor to publish the range of messages
+        publish_obj = PublishRangeOfMessages(start_submission_number=latest_result_in_db.latest_submission+1, end_submission_number=latest_id)
+
+        logger.info("telling rabbitmq actor to publish the range of messages: `%s`", publish_obj)
+        publish_result:DataMessage = await self.rabbit_actor.ask(DataMessage(data=publish_obj, sender=self))
+        logger.info("rabbitmq actor result of publishing range of messages was `%s`", publish_result.data)
 
 
     async def handle_message(self, message: Message):
