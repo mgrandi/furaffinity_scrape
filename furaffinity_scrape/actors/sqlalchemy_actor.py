@@ -66,7 +66,7 @@ class SqlalchemyActor(Actor):
 
             tmp_result = await sqla_session.execute(statement)
 
-            top_fa_id = tmp_result.fetchone().furaffinity_submission_id
+            top_fa_id = int(tmp_result.fetchone().furaffinity_submission_id)
             logger.debug("top fa id is `%s`", top_fa_id)
 
             return top_fa_id

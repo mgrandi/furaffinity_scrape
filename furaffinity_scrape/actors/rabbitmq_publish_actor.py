@@ -1,7 +1,9 @@
 import asyncio
 import logging
 
+from aiormq.exceptions import AMQPError
 import aio_pika
+from aio_pika.abc import DeliveryMode
 import arrow
 from sqlalchemy import select, desc, text, func
 from sqlalchemy.orm import sessionmaker
@@ -56,6 +58,38 @@ class RabbitmqPublishActor(Actor):
 
     async def handle_publish_range_of_messages(self, publish_range_obj:PublishRangeOfMessages) -> PublishRangeOfMessagesResult:
 
+        logger.info("publishing messages: `%s` to the queue `%s`",
+            publish_range_obj,
+            self.config.rabbitmq_queue_name)
+
+        try:
+            # publish the messages
+            for idx in range(
+                publish_range_obj.start_submission_number,
+                publish_range_obj.end_submission_number + 1 ):
+
+                # from https://www.rabbitmq.com/tutorials/tutorial-three-python.html
+                # The exchange parameter is the name of the exchange. The empty
+                # string denotes the default or nameless exchange: messages are
+                # routed to the queue with the name specified by routing_key, if it exists.
+
+                message_body = f"{idx}"
+
+                message_to_publish = aio_pika.Message(
+                    body=message_body.encode("utf-8"),
+                    delivery_mode=DeliveryMode.PERSISTENT )
+
+                publish_result = await self.rabbitmq_channel.default_exchange.publish(
+                    message=message_to_publish,
+                    routing_key=self.config.rabbitmq_queue_name)
+        except AMQPError as e:
+            logger.exception("exception caught publishing rabbitmq messages for publish range object `%s`",
+                publish_range_obj)
+
+            return PublishRangeOfMessagesResult(
+                maybe_exception=e,
+                was_successful=False,
+                publish_obj=publish_range_obj)
 
         return PublishRangeOfMessagesResult(
             maybe_exception=None,

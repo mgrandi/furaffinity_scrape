@@ -147,7 +147,7 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
 
         logger.info("latest submission ID is: `%s`", latest_submission_id)
 
-        return latest_submission_id
+        return int(latest_submission_id)
 
     async def scheduled_func(self):
 
@@ -177,7 +177,9 @@ class QueueLatestSubmissionsSchedulerActor(Actor):
         latest_id:int = self.get_latest_submission_id_from_soup(soup)
 
         # send the rabbitmq publish actor to publish the range of messages
-        publish_obj = PublishRangeOfMessages(start_submission_number=latest_result_in_db.latest_submission+1, end_submission_number=latest_id)
+        publish_obj = PublishRangeOfMessages(
+            start_submission_number=latest_result_in_db.latest_submission+1,
+            end_submission_number=latest_id)
 
         logger.info("telling rabbitmq actor to publish the range of messages: `%s`", publish_obj)
         publish_result:DataMessage = await self.rabbit_actor.ask(DataMessage(data=publish_obj, sender=self))

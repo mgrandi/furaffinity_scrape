@@ -68,6 +68,9 @@ class QueueLatestSubmissionsRootActor(Actor):
 
     async def shutdown(self):
 
+        logger.info("stopping scheduler actor")
+        result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
+        logger.info("scheduler actor stopped with result: `%s`", result.data)
         logger.info("stopping rabbit actor...")
         result = await self.rabbit_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("rabbit actor stopped with result: `%s`", result.data)
@@ -81,9 +84,7 @@ class QueueLatestSubmissionsRootActor(Actor):
         result_http = await self.http_actor.ask(DataMessage(data=PleaseStop(), sender=self))
         logger.info("http actor stopped with result `%s`", result.data)
 
-        logger.info("stopping scheduler actor")
-        result = await self.scheduler_actor.ask(DataMessage(data=PleaseStop(), sender=self))
-        logger.info("scheduler actor stopped with result: `%s`", result.data)
+
 
 
     async def handle_message(self, message: Message):
