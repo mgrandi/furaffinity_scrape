@@ -89,7 +89,7 @@ WGET_EXPECTED_RETURN_CODES = [0,1, 8]
 # see https://bitmath.readthedocs.io/en/latest/instances.html#format
 BITMATH_FORMATTING_STRING = "{value:.3f} {unit}"
 
-WGET_ACCEPT_REGEX = "//[a-z]{1}\\.furaffinity\\.net/.*|fonts\\.googleapis\\.com/.*|www\\.furaffinity\\.net/themes/.*|fonts\\.gstatic\\.com/*"
+WGET_ACCEPT_REGEX = "//[a,d]{1}\\.furaffinity\\.net/.*|www\\.furaffinity\\.net/themes/beta/css/.*|www\\.furaffinity\\.net/themes/beta/img/banners/.*|www\\.furaffinity\\.net/themes/beta/js/.*"
 
 FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP = "id"
 FURAFFINITY_SUBMISSION_HREF_ID_REGEX = f"/view/(?P<{FURAFFINITY_SUBMISSION_HREF_ID_REGEX_GROUP}>[0-9]+)/"
