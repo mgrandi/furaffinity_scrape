@@ -25,9 +25,12 @@ from furaffinity_scrape import constants
 from furaffinity_scrape.constants import HoconTypesEnum
 
 from furaffinity_scrape import model
+import importlib.metadata
 
 logger = logging.getLogger(__name__)
 
+lib_name = "furaffinity_scrape"  # Your library's "distribution package" name
+lib_version = importlib.metadata.version(lib_name)
 
 def get_identity_string():
     '''
@@ -36,10 +39,11 @@ def get_identity_string():
     @return a string
     '''
 
+
     fqdn = socket.getfqdn()
     pid = os.getpid()
-    git_describe_output = get_git_describe_output()
-    identity_string = f"FQDN[{fqdn}]-PID[{pid}]-VER[{git_describe_output}]"
+    #git_describe_output = get_git_describe_output()
+    identity_string = f"FQDN[{fqdn}]-PID[{pid}]-VER[{lib_version}]"
 
     return identity_string
 
