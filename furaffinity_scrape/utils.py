@@ -710,9 +710,18 @@ async def run_command_and_wait(
             logger.debug("command `%s` timed out, trying again", binary_to_run.name)
 
     stdout_result = await process_obj.stdout.read()
-    stdout_output = stdout_result.decode("utf-8")
     logger.debug("the `%s` process exited: `%s`", binary_to_run.name, process_obj)
-    logger.debug("stdout: `%s`", stdout_output)
+
+    try:
+
+
+        stdout_output = stdout_result.decode("utf-8")
+        logger.debug("stdout: `%s`", stdout_output)
+
+    except Exception e:
+        logger.error("Failed to decode stdout output!", e)
+        logger.debug("stdout: `%s` (raw binary)", stdout_result)
+
 
     if process_obj.returncode not in acceptable_return_codes:
 

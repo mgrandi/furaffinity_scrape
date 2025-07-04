@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "furaffinity_scrape"
-version = "0.2.6"
+version = "0.2.7"
 description = "scrape utilites for furaffinity.net"
 authors = ["Mark Grandi <markgrandi@gmail.com>"]
 license = "MIT"
@@ -27,6 +27,7 @@ bitmath = "^1.3.3.1"
 apscheduler = "^3.11.0"
 actorio = "^0.1.4"
 python-dateutil = "^2.9.0.post0"
+pykeepass = "^4.1.0.post1"
 
 [tool.poetry.dev-dependencies]
 wheel = "^0.40.0"
