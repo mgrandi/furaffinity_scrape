@@ -32,9 +32,12 @@ var_fascrape_rsync_target_known_hosts_key_ecdsa_name: "{{lookup('viczem.keepass.
 var_fascrape_rsync_target_known_hosts_key_ecdsa_key: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_key')}}"
 
 # the ssh key with NO PASSWORD  that lets us connect to the rsync target
-var_fascrape_rsync_target_ssh_key_contents: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_ssh_target_key', 'custom_properties', 'key_contents')}}"
+# note: this variable is the exported path, not the actual contents of the key. I need to do this because
+# something is stripping the end `\n` or `0x0a` character from the end of the ssh key which causes ssh to not load it
+# because reasons
+var_fascrape_rsync_target_ssh_key_exported_path: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_ssh_target_key', 'attachments', 'rsync_key')}}"
 # path on the filesystem where the ssh key (for the rsync target) lives
-var_fascrape_rsync_target_ssh_key_filepath: "/home/mgrandi/faurls/synology_rsync.key"
+var_fascrape_rsync_target_ssh_key_filepath: "/home/mgrandi/faurls/rsync_ssh.key"
 
 # become password
 ansible_become_pass: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/basic_info', 'custom_properties', 'become_sudo_password')}}"

@@ -71,7 +71,7 @@
     owner: "{{var_fascrape_remote_user}}"
     group: "{{var_fascrape_remote_group}}"
     mode: "700"
-    content: "{{var_fascrape_rsync_target_ssh_key_contents}}"
+    src: "{{var_fascrape_rsync_target_ssh_key_exported_path}}"
     dest: "{{var_fascrape_rsync_target_ssh_key_filepath}}"
 
 - name: install rsync ssh key known host entry (ed25519)
