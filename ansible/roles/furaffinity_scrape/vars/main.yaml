@@ -1,0 +1,40 @@
+
+
+# the path to the keepass file that holds everything else
+keepass_dbx: "{{lookup('ansible.builtin.env', 'FURAFFINITY_SCRAPE_ANSIBLE_KEEPASS_FILE_PATH') }}"
+
+# environment variable that tells where on your local system the configuration file lives
+# since this could be completely custom, it is easier for you to edit it manually and just provide the location
+# rather than having everything in a env variable or a jinja template...
+var_fascrape_local_configuration_file_path: "{{lookup('ansible.builtin.env', 'FURAFFINITY_SCRAPE_CONFIG_FILE_PATH') }}"
+
+# the variable that will dicate where on the remote virtual machine it will install
+# all files relating to the furaffinity scrape project, logs, the .pex, the custom build
+# of wget, etc
+# this SHOULD NOT END in a slash
+var_fascrape_remote_base_directory: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/basic_info', 'custom_properties', 'base_directory_without_ending_slash')}}"
+
+# username / group of the files that will be created on the remote host. we need to set the owenr / group for the files that
+# we drop
+var_fascrape_remote_user: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/basic_info', 'custom_properties', 'user')}}"
+var_fascrape_remote_group:  "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/basic_info', 'custom_properties', 'group')}}"
+
+# the known host key for the rsync targets, 3 of them, for RSA, ED25519 and ECDSA
+# to prevent the 'accept unknown host key?" prompt on first rsa which obviously won't work because the
+# script is unattended.
+# this comes from the keepass database because we need the 'name' and the the public key data, and probably easier to just
+# set that in keepass than in 6 environment variables.
+var_fascrape_rsync_target_known_hosts_key_rsa_name: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_name')}}"
+var_fascrape_rsync_target_known_hosts_key_rsa_key: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_key')}}"
+var_fascrape_rsync_target_known_hosts_key_ed25519_name: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_name')}}"
+var_fascrape_rsync_target_known_hosts_key_ed25519_key: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_key')}}"
+var_fascrape_rsync_target_known_hosts_key_ecdsa_name: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_name')}}"
+var_fascrape_rsync_target_known_hosts_key_ecdsa_key: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_target_ssh_known_hosts-rsa', 'custom_properties', 'known_hosts_key')}}"
+
+# the ssh key with NO PASSWORD  that lets us connect to the rsync target
+var_fascrape_rsync_target_ssh_key_contents: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/rsync_ssh_target_key', 'custom_properties', 'key_contents')}}"
+# path on the filesystem where the ssh key (for the rsync target) lives
+var_fascrape_rsync_target_ssh_key_filepath: "/home/mgrandi/faurls/synology_rsync.key"
+
+# become password
+ansible_become_pass: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/basic_info', 'custom_properties', 'become_sudo_password')}}"

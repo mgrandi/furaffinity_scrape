@@ -1,0 +1,10 @@
+[Unit]
+Description=furaffinity_scrape
+
+[Service]
+WorkingDirectory={{var_fascrape_remote_base_directory}}
+ExecStart=python3 {{var_fascrape_remote_base_directory}}/furaffinity_scrape.pex --config {{var_fascrape_remote_base_directory}}/furaffinity_scrape_config.hocon scrape_submissions
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

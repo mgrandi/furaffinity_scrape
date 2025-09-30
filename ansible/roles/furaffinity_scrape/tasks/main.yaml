@@ -1,0 +1,139 @@
+- name: install apt packages
+  become: yes
+  ansible.builtin.apt:
+    update_cache: true
+    state: present
+    pkg:
+    - autoconf
+    - autoconf-archive
+    - automake
+    - autopoint
+    - build-essential
+    - bzip2
+    - flex
+    - git-core
+    - gperf
+    - libgnutls28-dev
+    - liblua5.1-0-dev
+    - libzstd-dev
+    - libzstd1
+    - lua-socket
+    - lua5.1
+    - p7zip-full
+    - pipx
+    - pkg-config
+    - python3
+    - python3-dev
+    - python3-pip
+    - python3-venv
+    - python3-wheel
+    - rsync
+    - texinfo
+    - zlib1g-dev
+    - zstd
+
+- name: Install poetry python via pipx
+  community.general.pipx:
+    name: poetry
+    state: latest
+
+- name: create faurls folder
+  ansible.builtin.file:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    path: "{{var_fascrape_remote_base_directory}}"
+    state: directory
+
+- name: create faurls/logs folder
+  ansible.builtin.file:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    path: "{{var_fascrape_remote_base_directory}}/logs"
+    state: directory
+
+- name: create faurls/temp folder
+  ansible.builtin.file:
+    path: "{{var_fascrape_remote_base_directory}}/temp"
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    state: directory
+
+- name: copy wget install script file to remote
+  ansible.builtin.copy:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    mode: "775"
+    src: install_wget_lua.sh
+    dest: "{{var_fascrape_remote_base_directory}}/install_wget_lua.sh"
+
+- name: copy rsync ssh key to file
+  ansible.builtin.copy:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    mode: "700"
+    content: "{{var_fascrape_rsync_target_ssh_key_contents}}"
+    dest: "{{var_fascrape_rsync_target_ssh_key_filepath}}"
+
+- name: install rsync ssh key known host entry (ed25519)
+  # NEEDS TO BE THE SSH KEY OF THE HOST NOT THE SSH KEY WE ARE USING TO LOGIN
+  # use `cd /etc/ssh; ssh-keygen -y -f ssh_host_ed25519_key`
+  ansible.builtin.known_hosts:
+    name: "{{var_fascrape_rsync_target_known_hosts_key_ed25519_name}}"
+    key: "{{var_fascrape_rsync_target_known_hosts_key_ed25519_key}}"
+    state: present
+
+- name: install rsync ssh key known host entry (rsa)
+  # NEEDS TO BE THE SSH KEY OF THE HOST NOT THE SSH KEY WE ARE USING TO LOGIN
+  # use `cd /etc/ssh; ssh-keygen -y -f ssh_host_rsa_key`
+  ansible.builtin.known_hosts:
+    name: "{{var_fascrape_rsync_target_known_hosts_key_rsa_name}}"
+    key: "{{var_fascrape_rsync_target_known_hosts_key_rsa_key}}"
+    state: present
+
+- name: install rsync ssh key known host entry (ecdsa)
+  # NEEDS TO BE THE SSH KEY OF THE HOST NOT THE SSH KEY WE ARE USING TO LOGIN
+  # use `cd /etc/ssh; ssh-keygen -y -f ssh_host_ecdsa_key`
+  ansible.builtin.known_hosts:
+    name: "{{var_fascrape_rsync_target_known_hosts_key_ecdsa_name}}"
+    key: "{{var_fascrape_rsync_target_known_hosts_key_ecdsa_key}}"
+    state: present
+
+- name: execute install_wget_lua.sh
+  ansible.builtin.command:
+    creates: "{{var_fascrape_remote_base_directory}}/wget"
+    argv:
+      - "{{var_fascrape_remote_base_directory}}/install_wget_lua.sh"
+
+- name: copy furaffinity_scrape.pex file to remote
+  ansible.builtin.copy:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    src: pex_files/furaffinity_scrape-0.2.7.pex
+    dest: "{{var_fascrape_remote_base_directory}}/furaffinity_scrape.pex"
+
+- name: copy furaffinity_scrape config file to remote
+  ansible.builtin.copy:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    src: "{{var_fascrape_local_configuration_file_path}}"
+    dest: "{{var_fascrape_remote_base_directory}}//furaffinity_scrape_config.hocon"
+
+- name: create user systemd unit folder
+  ansible.builtin.file:
+    path: "/home/{{var_fascrape_remote_user}}/.config/systemd/user/"
+    state: directory
+
+- name: copy systemd unit file for furaffinity_scrape
+  ansible.builtin.template:
+    owner: "{{var_fascrape_remote_user}}"
+    group: "{{var_fascrape_remote_group}}"
+    src: furaffinity_scrape.service.j2
+    dest: "/home/{{var_fascrape_remote_user}}/.config/systemd/user/furaffinity_scrape.service"
+
+- name: install the systemd unit to the user scope
+  ansible.builtin.systemd:
+    name: furaffinity_scrape.service
+    scope: user
+    daemon_reload: true
+    state: started
+    enabled: true

@@ -1,0 +1,4 @@
+- hosts: humboldti:fascrape:azure_tag_type_fascrape
+  roles:
+    # run everything in these roles
+    - furaffinity_scrape
