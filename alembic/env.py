@@ -51,7 +51,7 @@ def get_our_own_sqla_url():
 
     our_config_path:str = x_arguments[constants.ALEMBIC_CMD_X_ARGUMENT_NAME]
 
-    logger.info("steam workshop downloader config file path: `%s`", our_config_path)
+    logger.info("config file path: `%s`", our_config_path)
     our_config:pathlib.Path = utils.hocon_config_file_type(our_config_path)
     db_config_key = f"{constants.HOCON_CONFIG_TOP_LEVEL_KEY}.{constants.HOCON_CONFIG_DATABASE_GROUP}"
     sqla_url = utils.get_sqlalchemy_url_from_hocon_config(our_config.get_config(db_config_key))
