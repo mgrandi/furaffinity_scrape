@@ -141,6 +141,26 @@ class FAScrapeContent(CustomDeclarativeBase):
 
     )
 
+class FuraffinityHoleStatus(CustomDeclarativeBase):
+
+    __tablename__ = "fa_hole_status"
+
+    item_id = Column(Integer, nullable=False, autoincrement=True)
+    run_id = Column(Integer, nullable=False)
+    processed_status = Column(ChoiceType(model.ProcessedStatus, impl=Unicode()), nullable=False)
+    file_path = Column(Unicode, nullable=False)
+    warc_sha512 = Column(Unicode, nullable=True)
+    fa_submission_status = Column(ChoiceType(model.FuraffinitySubmissionStatus, impl=Unicode()), nullable=False)
+
+
+    __table_args__ = (
+        PrimaryKeyConstraint("item_id", name="PK-fa_hole_status-item_id"),
+        Index("IX-fa_hole_status-run_id-processed_status", "run_id", "processed_status"),
+
+    )
+
+
+
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class WgetDownloadResult:
 
@@ -148,27 +168,3 @@ class WgetDownloadResult:
     compressed_warc_file_path:pathlib.Path = attr.ib()
 
 
-# class URLSVisited(CustomDeclarativeBase):
-#     __tablename__ = "urls_visited"
-#     # primary key column
-#     url_visited_id = Column(Integer, nullable=False, autoincrement=True)
-#     date_added = Column(ArrowType, nullable=False)
-#     url = Column(URLType, nullable=False)
-#     status = Column(ChoiceType(model.DatabaseQueueStatusEnum, impl=Unicode()))
-#     __table_args__ = (
-#         PrimaryKeyConstraint("url_visited_id", name="PK-urls_visited-user_id"),
-#         Index("IX-urls_visited-date_added", "date_added"),
-#         Index("IXUQ-urls_visited-url", "url", unique=True),
-#     )
-
-# class Queue(CustomDeclarativeBase):
-#     __tablename__ = "queue"
-#     queue_id = Column(Integer, nullable=False, autoincrement=True)
-#     url_visited_id = Column(Integer,
-#         ForeignKey("urls_visited.url_visited_id", name="FK-queue-url_visited_id-urls_visited-url_visited_id"),
-#         nullable=False)
-#     url = relationship("URLSVisited")
-#     __table_args__ = (
-#         PrimaryKeyConstraint("queue_id", name="PK-queue-queue_id"),
-#         Index("IX-queue-url_visited_id", "url_visited_id")
-#     )
