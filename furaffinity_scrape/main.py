@@ -13,6 +13,7 @@ from furaffinity_scrape.modules.populate_rabbit import PopulateRabbit
 from furaffinity_scrape.modules.extract_files_from_db import ExtractFilesFromDb
 from furaffinity_scrape.modules.queue_latest_submissions import QueueLatestSubmissions
 from furaffinity_scrape.modules.find_fa_holes_prescan import FindFaHolesPrescan
+from furaffinity_scrape.modules.find_fa_holes import FindFaHoles
 
 
 
@@ -61,6 +62,7 @@ class Main():
         QueueLatestSubmissions.create_subparser_command(subparsers)
 
         FindFaHolesPrescan.create_subparser_command(subparsers)
+        FindFaHoles.create_subparser_command(subparsers)
 
         root_logger = logging.getLogger()
 

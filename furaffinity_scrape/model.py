@@ -6,6 +6,7 @@ import pathlib
 import bs4
 from sqlalchemy.engine.url import URL
 import attr
+from attrs import define, field, frozen
 import yarl
 
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
@@ -117,6 +118,17 @@ class AiohttpResponseResult:
     binary_data:bytes = attr.ib()
     encountered_decoding_error:bool = attr.ib()
 
+@frozen
+class WarcatRecordInformation:
+    warc_filepath:pathlib.Path
+    position:int
+    warc_record_id:str
+    warc_type:str
+    content_type:str
+    warc_target_uri:str
+
+
+
 @attr.s(auto_attribs=True, frozen=True, kw_only=True)
 class RabbitmqMessageInfo:
 
@@ -137,4 +149,22 @@ class ProcessedStatus(enum.Enum):
 class EncodingStatusEnum(enum.Enum):
     DECODED_OK = "decoded_ok"
     UNICODE_DECODE_ERROR = "unicode_decode_error"
+
+
+class FuraffinitySubmissionStatus(enum.Enum):
+    PRESENT = "present"
+    DELETED = "deleted"
+    CLOUDFLARE = "cloudflare"
+    MAINTENANCE = "maintenance"
+    UNKNOWN = "unknown"
+
+class FuraffinitySubmissionType(enum.Enum):
+    ART = "art"
+    FLASH = "flash"
+    MUSIC = "music"
+    STORY = "story"
+    PHOTOS = "photos"
+    POETRY = "poetry"
+
+
 
