@@ -68,13 +68,16 @@ class FindFaHolesPrescan:
         )
 
 
-
         run_id = parsed_args.run_id
         root_directory = parsed_args.rootdir
 
         logger.info("starting scan at `%s`", root_directory)
 
         for dirpath, dirnames, filenames in root_directory.walk(top_down=True):
+
+            if self.stop_event.is_set():
+                logger.info("stop event is set, breaking out early at folder `%s`", dirpath)
+                break
 
             async with self.async_sessionmaker() as sqla_session:
 
