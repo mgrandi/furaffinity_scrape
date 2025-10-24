@@ -2,6 +2,7 @@ from __future__ import annotations
 import logging
 import typing
 import asyncio
+import asyncio.subprocess
 import pathlib
 import subprocess
 import json
@@ -118,12 +119,16 @@ class FindFaHoles:
         logger.debug("handling row `%s`", item)
 
 
+        # first, read the data from disk so we aren't doing it multiple times
+        sevenzip_decompressed_data = await self._read_sevenzip_data(item.file_path)
 
-        warc_records = self.get_warc_record_list(item_path)
+        # get the warcat rows
+
+        warc_records = await self.get_warc_record_list(sevenzip_decompressed_data)
 
         warcinfo_record = self._find_first_warc_record_matches_function(lambda x: x.warc_type == "warcinfo", warc_records)
 
-        headers_ba = self._get_decoded_base64_for_warcrecord(warcinfo_record)
+        headers_ba = await self._get_decoded_base64_for_warcrecord(sevenzip_decompressed_data, warcinfo_record)
         headers_dict = self._get_warcinfo_header_dict_from_bytearray(headers_ba)
 
         breakpoint()
@@ -165,20 +170,38 @@ class FindFaHoles:
         return None
 
 
+    async def _read_sevenzip_data(self, path:pathlib.Path) -> bytearray:
 
-    def get_warc_record_list(self, warc_file_path:pathlib.Path) -> list[model.WarcatRecordInformation]:
+        cmd = self.config.sevenzip_path
+        args = ["x", "-so", path]
+        proc = await asyncio.create_subprocess_exec(cmd, *args, stdout=asyncio.subprocess.PIPE)
+
+        result_tuple =  await proc.communicate()
+
+        return result_tuple[0]
+
+    async def run_warcat_command(self, warc_data:bytearray,warcat_args:list[str]) -> bytearray:
+
+        proc = await asyncio.create_subprocess_exec(
+            self.warcat_path,
+            *warcat_args,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE)
+        result_tuple = await proc.communicate(warc_data)
+
+        return result_tuple[0]
+
+
+    async def get_warc_record_list(self, data:bytearray) -> list[model.WarcatRecordInformation]:
 
         warcat_args = ["--quiet", "list", "--input",
             "-", "--compression", "none",  "--format", "jsonl", "--field",
             ":position,WARC-Record-ID,WARC-Type,Content-Type,WARC-Target-URI"]
 
-        result_bytes = self.run_warcat_command(
-            self.config.sevenzip_path,
-            self.warcat_path,
-            warc_file_path,
-            warcat_args)
+        raw_data = await self.run_warcat_command(warc_data=data, warcat_args=warcat_args)
 
-        sio = io.StringIO(result_bytes.decode("utf-8"))
+        sio = io.StringIO(raw_data.decode("utf-8"))
+
 
         result_list = list()
         while True:
@@ -188,7 +211,6 @@ class FindFaHoles:
 
             json_line = json.loads(iter_line)
             info = model.WarcatRecordInformation(
-                warc_filepath=warc_file_path,
                 position=json_line[0],
                 warc_record_id=json_line[1],
                 warc_type=json_line[2],
@@ -202,7 +224,7 @@ class FindFaHoles:
 
 
 
-    def _get_decoded_base64_for_warcrecord(self, warcrecord:model.WarcatRecordInformation) -> bytearray:
+    async def _get_decoded_base64_for_warcrecord(self, data:bytearray, warcrecord:model.WarcatRecordInformation) -> bytearray:
 
         warcat_args = [
             "--quiet",
@@ -213,11 +235,8 @@ class FindFaHoles:
             "--position", f"{warcrecord.position}",
             "--id", warcrecord.warc_record_id]
 
-        result_bytes = self.run_warcat_command(
-            self.config.sevenzip_path,
-            self.warcat_path,
-            warcrecord.warc_filepath,
-            warcat_args)
+        result_bytes = await self.run_warcat_command(
+            warc_data=data, warcat_args=warcat_args)
 
         sio = io.StringIO(result_bytes.decode("utf-8"))
         ba = bytearray()
@@ -233,34 +252,6 @@ class FindFaHoles:
                 ba.extend(base64.b64decode(json_line["BlockChunk"]["data"]))
         return ba
 
-
-
-    def run_warcat_command(self,
-        sevenzip_path:pathlib.Path,
-        warcat_path:pathlib.Path,
-        warc_file:pathlib.Path,
-        warcat_arguments:list[str]) -> str:
-
-
-        sevenzip_args = [sevenzip_path, "x", "-so", warc_file]
-
-        warcat_args = [warcat_path]
-        warcat_args.extend(warcat_arguments)
-
-        logger.debug("running warcat command: `%s`", warcat_args)
-
-        with subprocess.Popen(sevenzip_args, stdout=subprocess.PIPE, close_fds=False) as seven_zip_process:
-
-            warcat_process = subprocess.Popen(warcat_args, stdin=seven_zip_process.stdout, stdout=subprocess.PIPE)
-
-            # you have to close the pipe to make it work or else it seems to just truncate it part way?
-            # no idea what is actually happening here
-            # https://stackoverflow.com/questions/13332268/how-to-use-subprocess-command-with-pipes
-            seven_zip_process.stdout.close()
-            warcat_stdout, warcat_stderr = warcat_process.communicate()
-
-
-            return warcat_stdout
 
 
 

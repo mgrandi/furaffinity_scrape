@@ -120,7 +120,6 @@ class AiohttpResponseResult:
 
 @frozen
 class WarcatRecordInformation:
-    warc_filepath:pathlib.Path
     position:int
     warc_record_id:str
     warc_type:str
