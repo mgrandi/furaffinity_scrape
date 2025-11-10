@@ -104,6 +104,8 @@ FURAFFINITY_URL_SUBMISSION = "https://www.furaffinity.net/view/{}/"
 
 SUBMISSION_DOESNT_EXIST_TEXT = "The submission you are trying to find is not in our database.                \nClick here to go back"
 
+WARCINFO_RECORD_FURAFFINITY_VIEW_URL_REGEX = re.compile("^https:\/\/www.furaffinity.net\/view\/[0-9]+\/")
+
 class HoconTypesEnum(enum.Enum):
     STRING = "string"
     INT = "int"

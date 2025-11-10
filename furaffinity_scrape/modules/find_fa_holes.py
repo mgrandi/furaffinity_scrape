@@ -122,21 +122,50 @@ class FindFaHoles:
         # first, read the data from disk so we aren't doing it multiple times
         sevenzip_decompressed_data = await self._read_sevenzip_data(item.file_path)
 
+        breakpoint()
         # get the warcat rows
 
         warc_records = await self.get_warc_record_list(sevenzip_decompressed_data)
 
         warcinfo_record = self._find_first_warc_record_matches_function(lambda x: x.warc_type == "warcinfo", warc_records)
 
+        logger.info("found warcinfo record: `%s`", warcinfo_record)
+        sevenzip_decompressed_data.seek(0)
+
         headers_ba = await self._get_decoded_base64_for_warcrecord(sevenzip_decompressed_data, warcinfo_record)
         headers_dict = self._get_warcinfo_header_dict_from_bytearray(headers_ba)
 
+        # we now have the warcinfo records , we know the furaffinity submission
+        # number and attempt id . we need to find the warc record for the main submission
+
+        submission_page_record = self._find_first_warc_record_matches_function(
+            lambda x: x.warc_type == "response" and constants.WARCINFO_RECORD_FURAFFINITY_VIEW_URL_REGEX.match(x.warc_target_uri) != None, warc_records)
+        logger.info("found main submission record: `%s`", submission_page_record)
+
+        sevenzip_decompressed_data.seek(0)
+
+        fa_submission_ba = await self._get_decoded_base64_for_warcrecord(
+            sevenzip_decompressed_data, submission_page_record)
+
+        fa_html_result = self._get_fa_submission_html_information(fa_submission_ba)
+
+        breakpoint()
+
+    def _get_fa_submission_html_information(self,
+        ba:bytearray) -> None:
+
+        sio = io.StringIO(ba.decode("utf-8"))
         breakpoint()
 
 
     def _get_warcinfo_header_dict_from_bytearray(
         self,
         ba:bytearray) -> dict:
+        '''
+        this returns the dictionary of data from a WARCINFO record
+        this also includes custom headers we pass in to wget-at through `--warc-header`
+
+        '''
 
         sio = io.StringIO(ba.decode("utf-8"))
 
@@ -170,7 +199,7 @@ class FindFaHoles:
         return None
 
 
-    async def _read_sevenzip_data(self, path:pathlib.Path) -> bytearray:
+    async def _read_sevenzip_data(self, path:pathlib.Path) -> io.BytesIO:
 
         cmd = self.config.sevenzip_path
         args = ["x", "-so", path]
@@ -178,21 +207,25 @@ class FindFaHoles:
 
         result_tuple =  await proc.communicate()
 
-        return result_tuple[0]
+        result_bio = io.BytesIO(result_tuple[0])
+        return result_bio
 
-    async def run_warcat_command(self, warc_data:bytearray,warcat_args:list[str]) -> bytearray:
+    async def run_warcat_command(self, warc_data:io.BytesIO ,warcat_args:list[str]) -> bytearray:
+
+        logger.debug("Running warcat command: `%s `%s`",
+            self.warcat_path, warcat_args)
 
         proc = await asyncio.create_subprocess_exec(
             self.warcat_path,
             *warcat_args,
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE)
-        result_tuple = await proc.communicate(warc_data)
+        result_tuple = await proc.communicate(warc_data.getvalue())
 
         return result_tuple[0]
 
 
-    async def get_warc_record_list(self, data:bytearray) -> list[model.WarcatRecordInformation]:
+    async def get_warc_record_list(self, data:io.BytesIO) -> list[model.WarcatRecordInformation]:
 
         warcat_args = ["--quiet", "list", "--input",
             "-", "--compression", "none",  "--format", "jsonl", "--field",
@@ -224,7 +257,7 @@ class FindFaHoles:
 
 
 
-    async def _get_decoded_base64_for_warcrecord(self, data:bytearray, warcrecord:model.WarcatRecordInformation) -> bytearray:
+    async def _get_decoded_base64_for_warcrecord(self, data:io.BytesIO, warcrecord:model.WarcatRecordInformation) -> bytearray:
 
         warcat_args = [
             "--quiet",
