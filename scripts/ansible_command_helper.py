@@ -5,6 +5,7 @@ import sys
 import subprocess
 import getpass
 import shutil
+import os
 
 import pykeepass
 from pykeepass import PyKeePass
@@ -107,17 +108,19 @@ def run_playbook_command(args):
   ]
 
   env_dict = {
-    "FURAFFINITY_SCRAPE_ANSIBLE_KEEPASS_FILE_PATH": args.ansible_keyvault_database_path,
+    "FURAFFINITY_SCRAPE_ANSIBLE_KEEPASS_FILE_PATH": str(args.ansible_keyvault_database_path),
     "ANSIBLE_KEEPASS_PSW": entry.password,
-    "FURAFFINITY_SCRAPE_CONFIG_FILE_PATH": args.furaffinity_scrape_config_file_path
+    "FURAFFINITY_SCRAPE_CONFIG_FILE_PATH": str(args.furaffinity_scrape_config_file_path),
   }
 
+  final_env_dict = os.environ
+  final_env_dict.update(env_dict)
 
   # run command
   root_logger.info("running ansible command")
 
   subprocess.run(
-    ansible_command, env=env_dict
+    ansible_command, env=final_env_dict
   )
 
 
