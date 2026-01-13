@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 import attr
-from actorio import Actor, Message, DataMessage, ask, EndMainLoop
+from actorio_ng import Actor, Message, DataMessage, ask, EndMainLoop
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model

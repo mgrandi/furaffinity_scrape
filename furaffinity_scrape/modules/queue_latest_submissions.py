@@ -12,7 +12,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.postgresql import insert
 
-from actorio import Actor, Message, DataMessage, EndMainLoop, Reference
+from actorio_ng import Actor, Message, DataMessage, EndMainLoop, Reference
 
 from furaffinity_scrape import utils
 from furaffinity_scrape import db_model

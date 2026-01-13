@@ -4,7 +4,6 @@ import argparse
 import sys
 import asyncio
 import logging_tree
-import actorio
 
 from furaffinity_scrape import utils
 from furaffinity_scrape.modules.scrape_users import ScrapeUsers

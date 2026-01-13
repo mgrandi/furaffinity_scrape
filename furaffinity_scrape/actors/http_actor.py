@@ -3,7 +3,7 @@ import logging
 
 import aiohttp
 import attr
-from actorio import Actor, Message, DataMessage, ask, EndMainLoop
+from actorio_ng import Actor, Message, DataMessage, ask, EndMainLoop
 import yarl
 from bs4 import BeautifulSoup
 
