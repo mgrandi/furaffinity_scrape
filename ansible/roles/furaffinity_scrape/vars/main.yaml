@@ -1,4 +1,8 @@
 
+# tailscale variables
+tailscale_authkey: "{{lookup('viczem.keepass.keepass', 'furaffinity_scrape/tailscale_auth_key', 'password')}}"
+tailscale_tags:
+  - "fascrape-worker"
 
 # the path to the keepass file that holds everything else
 keepass_dbx: "{{lookup('ansible.builtin.env', 'FURAFFINITY_SCRAPE_ANSIBLE_KEEPASS_FILE_PATH') }}"
