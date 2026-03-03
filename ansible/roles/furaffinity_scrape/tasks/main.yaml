@@ -32,11 +32,6 @@
     - zlib1g-dev
     - zstd
 
-- name: Install poetry python via pipx
-  community.general.pipx:
-    name: poetry
-    state: latest
-
 - name: create faurls folder
   ansible.builtin.file:
     owner: "{{var_fascrape_remote_user}}"
