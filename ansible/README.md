@@ -15,6 +15,7 @@ install on your local machine you are running ansible with:
 
 ```plaintext
 pip install 'pykeepass==4.0.3' --user
+ansible-galaxy collection install artis3n.tailscale
 ansible-galaxy collection install viczem.keepass
 ```
 
@@ -40,3 +41,19 @@ if using the just file, there are a few more
 
 `PERSONAL_KEEPASS_VAULT_FILE_PATH` - the other kepass vault that contains the password to the main ansible keepass vault (`FURAFFINITY_SCRAPE_ANSIBLE_KEEPASS_FILE_PATH`)
 `PERSONAL_KEEPASS_VAULT_ENTRY` - the entry we want `keepassxc-cli` to fetch for the password for the main keepass vault
+
+### helper script
+
+in the main repo folder
+
+running custom playbook:
+
+```plaintext
+python3 ansible_command_helper.py --ansible-playbook "../ansible/update-apt-packages.yaml"  @ansible_helper_args_remote_normal.rsp
+```
+
+running default playbook
+
+```plaintext
+python3 ansible_command_helper.py   @ansible_helper_args_remote_normal.rsp
+```

@@ -101,7 +101,7 @@ def run_playbook_command(args):
 
   ansible_command = [
     playbook_cmd,
-    "../ansible/playbook.yaml",
+    args.ansible_playbook,
     #"-vvv",
     "--inventory",
     args.ansible_inventory_folder
@@ -167,6 +167,13 @@ def main():
     required=True,
     type=isFolderType(True),
     help="inventory folder")
+
+  parser.add_argument("--ansible-playbook",
+    dest="ansible_playbook",
+    required=False,
+    default="../ansible/playbook.yaml",
+    type=isFileType(True),
+    help="what playbook to run")
 
 
   subparsers = parser.add_subparsers()
