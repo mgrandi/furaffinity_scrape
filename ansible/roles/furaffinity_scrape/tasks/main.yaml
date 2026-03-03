@@ -103,7 +103,7 @@
   ansible.builtin.copy:
     owner: "{{var_fascrape_remote_user}}"
     group: "{{var_fascrape_remote_group}}"
-    src: pex_files/furaffinity_scrape-0.2.7.pex
+    src: pex_files/furaffinity_scrape-0.2.8.pex
     dest: "{{var_fascrape_remote_base_directory}}/furaffinity_scrape.pex"
 
 - name: copy furaffinity_scrape config file to remote
