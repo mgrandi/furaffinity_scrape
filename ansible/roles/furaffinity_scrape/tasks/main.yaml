@@ -132,3 +132,11 @@
     daemon_reload: true
     state: started
     enabled: true
+
+- name: Enable Linger for {{ var_fascrape_remote_user }} user
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/loginctl
+      - enable-linger
+      - "{{ var_fascrape_remote_user }}"
+    creates: "/var/lib/systemd/linger/{{ var_fascrape_remote_user }}"
